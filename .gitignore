@@ -1,0 +1,10 @@
+/dist/
+/venv/
+__pycache__/
+.cache/
+*.egg-info/
+*.pyc
+*.pyo
+*.swp
+*.swo
+*.swn

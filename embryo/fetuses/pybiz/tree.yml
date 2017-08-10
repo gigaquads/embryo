@@ -1,0 +1,7 @@
+- __init__.py
+- biz:
+    - __init__.py
+    - user.py: bizobj(user)
+- dao:
+    - __init__.py
+    - user_dao.py: dao(user)

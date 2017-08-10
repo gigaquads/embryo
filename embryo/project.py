@@ -2,6 +2,8 @@ import os
 
 import yaml
 
+from types import ModuleType
+
 from jinja2 import Template
 from yapf.yapflib.yapf_api import FormatCode
 
@@ -15,7 +17,7 @@ class Project(object):
     the rendering of templates into said files.
     """
 
-    def __init__(self, root: str, tree: str, templates: dict=None):
+    def __init__(self, root: str, tree: str, templates=None):
         self.root = root.rstrip('/')
         self.file_paths = set()
         self.directory_paths = set()
@@ -24,6 +26,16 @@ class Project(object):
 
         # _init_tree initializes the instance attributes declared above.
         self.tree = self._init_tree(yaml.load(tree))
+
+        # if templates is a module extract its public string attributes
+        # into the templates dict expected below.
+        if isinstance(templates, ModuleType):
+            tmp_templates = {}
+            for k in dir(templates):
+                v = getattr(templates, k)
+                if (not k.startswith('_')) and isinstance(v, (str, Template)):
+                    tmp_templates[k] = v
+            templates = tmp_templates
 
         # initialize jinja2 templates
         for k, v in (templates or {}).items():
@@ -72,6 +84,10 @@ class Project(object):
 
     def build(self, context: dict, style_config: dict=None) -> None:
         """
+        Args:
+            - context: a context dict for use by jinja2 templates.
+            - style_config: yapf style options for code formating>
+
         1. Create the directories and files in the file system.
         2. Render templates into said files.
         """

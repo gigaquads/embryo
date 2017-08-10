@@ -1,0 +1,38 @@
+user:
+    name: User
+    api:
+        - name: signup
+          url_path: /auth/signup
+          http_method: post
+          kwargs:
+            - name: email
+              type: str
+            - name: password
+              type: str
+
+        - name: login
+          url_path: /auth/login
+          http_method: post
+          kwargs:
+            - name: email
+              type: str
+            - name: password
+              type: str
+
+        - name: logout
+          url_path: /auth/logout
+          http_method: post
+
+    biz:
+        - name: verify_password
+          args:
+            - name: password
+              type: str
+
+    dao:
+        - name: exists
+          kwargs:
+            - name: _id
+              type: int
+            - name: public_id
+              type: str

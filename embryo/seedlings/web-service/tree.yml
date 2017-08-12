@@ -1,0 +1,16 @@
+- readme.md
+- requirements.txt
+- manifest.yml
+- setup.py
+- uwsgi.ini
+- serve.sh
+- main.py
+- {{ seedling["project_name_snake_case"] }}:
+    - __init__.py
+    - api.py
+    - biz:
+        - __init__.py
+        - user.py: bizobj(user)
+    - dao:
+        - __init__.py
+        - user_dao.py: dao(user)

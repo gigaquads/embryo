@@ -1,0 +1,11 @@
+# {{ seedling['project_name'] }} PyBiz Manifest
+# ------------------------------------------------------------
+
+# Python packages to scan for API functions:
+api_endpoints:
+- {{ seedling['project_name_snake_case'] }}.biz
+
+# Assignment of Dao classes to BizObject classes:
+data_access_layer:
+    - business_object: {{ seedling['project_name_snake_case'] }}.biz.user.User
+      data_access_object: {{ seedling['project_name_snake_case'] }}.dao.user_dao.UserDao

@@ -1,0 +1,35 @@
+from pybiz import BizObject
+
+from ..api import api
+
+
+class {{ name }}(BizObject):
+{% for method in api %}
+    @api.{{ method['http_method'].lower() }}('{{ method['url_path'] }}')
+    def {{ method['name'] }}(
+        request,
+        {% for arg in method.get('args', []) %}
+            {{ arg['name'] }}: {{ arg['type'] }}
+            {% if arg != method['args'][-1] %},{% endif %}
+        {% endfor %}
+        {% for kwarg in method.get('kwargs', []) %}
+            {{ kwarg['name'] }}: {{ kwarg['type'] }}={{ kwarg.get('default') }}
+            {% if kwarg != method['kwargs'][-1] %},{% endif %}
+        {% endfor %}
+        ):
+        pass
+{% endfor %}
+{% for method in biz %}
+    def {{ method['name'] }}(
+        self,
+        {% for arg in method.get('args', []) %}
+            {{ arg['name'] }}: {{ arg['type'] }}
+            {% if arg != method['args'][-1] %},{% endif %}
+        {% endfor %}
+        {% for kwarg in method.get('kwargs', []) %}
+            {{ kwarg['name'] }}: {{ kwarg['type'] }}={{ kwarg.get('default') }}
+            {% if kwarg != method['kwargs'][-1] %},{% endif %}
+        {% endfor %}
+        ):
+        pass
+{% endfor %}

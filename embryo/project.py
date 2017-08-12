@@ -19,16 +19,11 @@ class Project(object):
 
     def __init__(self, root: str, tree: str, templates=None):
         self.root = root.rstrip('/')
-        self.file_paths = set()
-        self.directory_paths = set()
-        self.render_metadata = {}
-        self.templates = {}
-
-        # _init_tree initializes the instance attributes declared above.
-        self.tree = self._init_tree(yaml.load(tree))
 
         # if templates is a module extract its public string attributes
         # into the templates dict expected below.
+        self.templates = {}
+
         if isinstance(templates, ModuleType):
             tmp_templates = {}
             for k in dir(templates):
@@ -43,6 +38,13 @@ class Project(object):
                 self.templates[k] = v
             else:
                 self.templates[k] = Template(v)
+
+        self.file_paths = set()
+        self.directory_paths = set()
+        self.render_metadata = {}
+
+        # finally, initializes the instance attributes declared above.
+        self.tree = self._init_tree(yaml.load(tree))
 
     def _init_tree(self, tree, parent_path: str='') -> dict:
         """
@@ -67,6 +69,7 @@ class Project(object):
                         'context_path': ctx_key,
                         }
                     self.file_paths.add(file_path)
+                    result[k] = True
                 else:
                     # call _init_tree on subdirectory
                     path = parent_path + '/' + k
@@ -74,12 +77,20 @@ class Project(object):
                     self.directory_paths.add(path)
             elif obj.endswith('/'):
                 # it'sn empty directory name
-                self.directory_paths.add(parent_path + '/' + obj)
-                result[obj] = False
+                dir_name = obj
+                self.directory_paths.add(parent_path + '/' + dir_name)
+                result[dir_name] = False
             else:
                 # it's a plain ol' file name
-                self.file_paths.add(parent_path + '/' + obj)
-                result[obj] = True
+                file_name = obj
+                file_path = parent_path + '/' + file_name
+                self.file_paths.add(file_path)
+                if file_name in self.templates:
+                    self.render_metadata[file_path] = {
+                        'template_name': file_name,
+                        'context_path': None,
+                        }
+                result[file_name] = True
         return result
 
     def build(self, context: dict, style_config: dict=None) -> None:
@@ -98,7 +109,7 @@ class Project(object):
 
             if meta is not None:
                 tpl_name = meta['template_name']
-                ctx_path = meta['context_path']
+                ctx_path = meta.get('context_path')
                 ctx_obj = context
 
                 # result the context sub-object to pass into
@@ -142,8 +153,11 @@ class Project(object):
         """
         style_config = style_config or STYLE_CONFIG
         template = self.templates[template_name]
-        rendered_text = template.render(context)
-        formatted_text = FormatCode(rendered_text, style_config=style_config)[0]
+        rendered_text = template.render(context).strip()
+        if file_path.endswith('.py'):
+            formatted_text = FormatCode(rendered_text, style_config=style_config)[0]
+        else:
+            formatted_text = rendered_text
         self.write(file_path, formatted_text)
 
     def write(self, file_path: str, text: str) -> None:

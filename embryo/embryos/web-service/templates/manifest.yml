@@ -1,15 +1,15 @@
-# {{ seedling['project_name'] }} PyBiz Manifest
+# {{ project_name }} PyBiz Manifest
 # ------------------------------------------------------------
 
 # The `paths` field declares where the API functions, BizObject
 # classes and Dao classes are to be found and loaded.
 paths:
     api:
-        - {{ seedling['project_name_snake_case'] }}.biz
+        - {{ project_name_snake_case }}.biz
     biz:
-        - {{ seedling['project_name_snake_case'] }}.biz
+        - {{ project_name_snake_case }}.biz
     dao:
-        - {{ seedling['project_name_snake_case'] }}.dao
+        - {{ project_name_snake_case }}.dao
 
 
 # The `bindings` section declares which Dao class is to be

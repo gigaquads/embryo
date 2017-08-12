@@ -34,9 +34,9 @@ if __name__ == '__main__':
             else:
                 requirements.append(line.strip().replace('-', '_'))
 
-    setup(name='{{ seedling["project_name"] }}',
+    setup(name='{{ project_name }}',
           version='1.0',
-          description='{{ seedling["project_name"] }}',
+          description='{{ project_name }}',
           long_description=readme,
           install_requires=requirements,
           dependency_links=dependency_links,

@@ -171,7 +171,7 @@ class Project(object):
         with open(path, 'w') as f_out:
             f_out.write(text)
 
-    def is_directory(self, path) -> bool:
+    def has_directory(self, path) -> bool:
         """
         Return True if the given path is a directory path. The path must be
         recognized by this `Project`.
@@ -179,7 +179,7 @@ class Project(object):
         key = '/' + path.strip('/')
         return self.directory_paths.get(key)
 
-    def is_file(self, path) -> bool:
+    def has_file(self, path) -> bool:
         """
         Return True if the given path is a file path. The path must be
         recognized by this `Project`.

@@ -1,11 +1,19 @@
 # {{ seedling['project_name'] }} PyBiz Manifest
 # ------------------------------------------------------------
 
-# Python packages to scan for API functions:
-api_endpoints:
-- {{ seedling['project_name_snake_case'] }}.biz
+# The `paths` field declares where the API functions, BizObject
+# classes and Dao classes are to be found and loaded.
+paths:
+    api:
+        - {{ seedling['project_name_snake_case'] }}.biz
+    biz:
+        - {{ seedling['project_name_snake_case'] }}.biz
+    dao:
+        - {{ seedling['project_name_snake_case'] }}.dao
 
-# Assignment of Dao classes to BizObject classes:
-data_access_layer:
-    - business_object: {{ seedling['project_name_snake_case'] }}.biz.user.User
-      data_access_object: {{ seedling['project_name_snake_case'] }}.dao.user_dao.UserDao
+
+# The `bindings` section declares which Dao class is to be
+# associated and utilized by each BizObject class.
+bindings:
+    - biz: User
+      dao: UserDao

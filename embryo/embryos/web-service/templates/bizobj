@@ -1,35 +1,63 @@
-from pybiz import BizObject
+from datetime import datetime
+
+from pybiz import BizObject, fields
+from pybiz.graphql import GraphQLField
 
 from ..api import api
 
 
 class {{ name }}(BizObject):
+{% for field in fields %}
+    {{ field['name'] }} = fields.{{ field['type'] }}()
+{% endfor %}
 {% for method in api %}
     @api.{{ method['http_method'].lower() }}('{{ method['url_path'] }}')
     def {{ method['name'] }}(
-        request,
         {% for arg in method.get('args', []) %}
             {{ arg['name'] }}: {{ arg['type'] }}
-            {% if arg != method['args'][-1] %},{% endif %}
+            {%- if not loop.last %},{% endif %}
         {% endfor %}
         {% for kwarg in method.get('kwargs', []) %}
             {{ kwarg['name'] }}: {{ kwarg['type'] }}={{ kwarg.get('default') }}
-            {% if kwarg != method['kwargs'][-1] %},{% endif %}
+            {%- if not loop.last %},{% endif %}
         {% endfor %}
         ):
-        pass
+        return {
+            'success': True,
+            'method': '{{ method['name'] }}',
+            'timestamp': datetime.now(),
+            }
 {% endfor %}
+
 {% for method in biz %}
+    {% if method.get('class_method') %}
+    @classmethod
+    {% elif method.get('static_method') %}
+    @staticmethod
+    {% endif %}
     def {{ method['name'] }}(
-        self,
+        {% if method.get('class_method') %}
+            cls
+        {% elif not method.get('static_method') %}
+            self
+        {% endif %}
+        {% if method.get('args') or method.get('kwargs') or method.get('variadic_args') or method.get('variadic_kwargs') %}
+            ,
+        {% endif %}
         {% for arg in method.get('args', []) %}
-            {{ arg['name'] }}: {{ arg['type'] }}
-            {% if arg != method['args'][-1] %},{% endif %}
+            {{ arg['name'] }}{{': ' + arg['type'] if arg.get('type') else ''}}
+            {%- if not loop.last %},{% endif %}
         {% endfor %}
         {% for kwarg in method.get('kwargs', []) %}
-            {{ kwarg['name'] }}: {{ kwarg['type'] }}={{ kwarg.get('default') }}
-            {% if kwarg != method['kwargs'][-1] %},{% endif %}
+            {{ kwarg['name'] }}: {{': ' + kwarg['type'] if kwarg.get('type') else ''}}={{ kwarg.get('default') }}
+            {%- if not loop.last %},{% endif %}
         {% endfor %}
+        {% if method.get('variadic_args') %}
+            , *args
+        {% endif %}
+        {% if method.get('variadic_kwargs') %}
+            , **kwargs
+        {% endif %}
         ):
         pass
 {% endfor %}

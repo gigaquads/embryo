@@ -10,6 +10,7 @@
     - api.py
     - biz:
         - __init__.py
+        - graphql_document.py
         - user.py: bizobj(user)
     - dao:
         - __init__.py

@@ -1,19 +1,13 @@
 # {{ project_name }} PyBiz Manifest
 # ------------------------------------------------------------
 
-# The `paths` field declares where the API functions, BizObject
+# The `package` field declares where the API functions, BizObject
 # classes and Dao classes are to be found and loaded.
-paths:
-    api:
-        - {{ project_name_snake_case }}.biz
-    biz:
-        - {{ project_name_snake_case }}.biz
-    dao:
-        - {{ project_name_snake_case }}.dao
-
+package: {{ project_name_snake_case }}
 
 # The `bindings` section declares which Dao class is to be
-# associated and utilized by each BizObject class.
+# utilized by each BizObject class as well as the
+# Schema class (optional).
 bindings:
     - biz: User
       dao: UserDao

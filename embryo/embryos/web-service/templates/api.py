@@ -1,10 +1,13 @@
-import pybiz.falcon
+import pybiz.frameworks.falcon
 
-from pybiz.falcon.middleware import RequestBinder, JsonTranslator
 from pybiz import Dao, BizObject
+from pybiz.frameworks.falcon.middleware import (
+        RequestBinder,
+        JsonTranslator,
+        )
 
 
-class Api(pybiz.falcon.Api):
+class Api(pybiz.frameworks.falcon.Api):
 
     @property
     def middleware(self):
@@ -12,18 +15,6 @@ class Api(pybiz.falcon.Api):
             RequestBinder([Dao, BizObject]),
             JsonTranslator(encoder=None),
             ]
-
-    def unpack(self, request, **kwargs):
-        """
-        This method defines how thw request and response arguments to Falcon
-        api request handler methods are "unpacked" into the argument lists
-        received by said methods when decorated with @api.post, etc.). The
-        return value is a tuple, where the first element is the args list and
-        the second is the kwargs dict.
-        """
-        args = (request,)
-        kwargs.update(request.json)
-        return (args, kwargs)
 
 
 #$

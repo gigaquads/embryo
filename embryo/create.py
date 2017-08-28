@@ -57,8 +57,15 @@ class EmbryoGenerator(object):
         templates_dir = '{}/templates'.format(self.embryo_path)
         templates = {}
         for file_name in os.listdir(templates_dir):
+            if file_name.endswith('.swp'):
+                continue
             with open('{}/{}'.format(templates_dir, file_name)) as f_in:
-                templates[file_name] = f_in.read()
+                try:
+                    templates[file_name] = f_in.read()
+                except Exception as exc:
+                    print('failed to load {} template'.format(file_name))
+                    raise exc
+
         return templates
 
     def load_tree_yaml(self, embryo: str, context: dict):

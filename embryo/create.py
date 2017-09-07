@@ -49,18 +49,38 @@ class EmbryoGenerator(object):
             hooks.post_create(project, context)
 
     def parse_args(self):
-        parser = argparse.ArgumentParser()
         embryo_names = [
             x for x in os.listdir(self.embryos_dir)
             if os.path.isdir(self.embryos_dir + '/' + x)
             ]
+
+        parser = argparse.ArgumentParser()
         parser.add_argument('embryo', type=str, help='''
             The name of the embryo to generate. Built-ins include: {}.
             '''.format(', '.join(embryo_names)))
-        parser.add_argument('--name', type=str, required=True, help='''
+        parser.add_argument('--destination', type=str, help='''
+            A file path to the directory where the embryo should be generated.
+            '''.format(', '.join(embryo_names)))
+        parser.add_argument('--name', type=str, default='', help='''
             The name of the project you're creating.
             ''')
-        return parser.parse_args()
+
+        args, unknown = parser.parse_known_args()
+
+        # now combine known and unknown arguments into a single dict
+        args_dict = {
+            k: getattr(args, k) for k in dir(args) if not k.startswith('_')
+            }
+
+        for i in range(0, len(unknown), 2):
+            k = unknown[i]
+            v = unknown[i+1]
+            args_dict[k.lstrip('-')] = v
+
+        # build a custom type with the combined argument names as attributes
+        arguments = type('Arguments', (object, ), args_dict)()
+
+        return arguments
 
     def load_templates(self, embryo: str):
         templates_dir = '{}/templates'.format(self.embryo_path)
@@ -98,7 +118,10 @@ class EmbryoGenerator(object):
                 context = yaml.load(context_file)
 
         context.update({
-            'embryo_name': args.embryo,
+            'args': {
+                k: getattr(args, k) for k in dir(args) if not k.startswith('_')
+                },
+            'embryo_name': args.embryo,  # XXX: use of these is deprecated
             'project_name': args.name,
             'project_name_snake_case': re.sub(
                 r'([a-z])([A-Z])', r'\1_\2', args.name).lower(),

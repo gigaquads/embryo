@@ -8,6 +8,7 @@ from jinja2 import Template
 from yapf.yapflib.yapf_api import FormatCode
 
 from .constants import RE_RENDERING_METADATA, STYLE_CONFIG
+from .exceptions import TemplateNotFound
 
 
 class Project(object):
@@ -151,13 +152,19 @@ class Project(object):
         Renders a template to a file, provided that the `file_path` provided is
         recognized by this `Project`.
         """
+        try:
+            template = self.templates[template_name]
+        except KeyError as exc:
+            raise TemplateNotFound(template_name)
+
         style_config = style_config or STYLE_CONFIG
-        template = self.templates[template_name]
         rendered_text = template.render(context).strip()
+
         if file_path.endswith('.py'):
             formatted_text = FormatCode(rendered_text, style_config=style_config)[0]
         else:
             formatted_text = rendered_text
+
         self.write(file_path, formatted_text)
 
     def write(self, file_path: str, text: str) -> None:

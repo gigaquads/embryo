@@ -38,14 +38,17 @@ class EmbryoGenerator(object):
         tree = self.load_tree_yaml(args.embryo, context)
         templates = self.load_templates(args.embryo)
         hooks = self.load_hooks()
-        project = Project(root=args.name, tree=tree, templates=templates)
+        project = Project(root=args.destination, tree=tree, templates=templates)
 
         if hooks.pre_create:
+            print('>>> Running pre_create hook...')
             hooks.pre_create(project, context, tree, templates)
 
+        print('>>> Creating embryo...')
         project.build(context)
 
         if hooks.post_create:
+            print('>>> Running post_create hook...')
             hooks.post_create(project, context)
 
     def parse_args(self):
@@ -58,7 +61,7 @@ class EmbryoGenerator(object):
         parser.add_argument('embryo', type=str, help='''
             The name of the embryo to generate. Built-ins include: {}.
             '''.format(', '.join(embryo_names)))
-        parser.add_argument('--destination', type=str, help='''
+        parser.add_argument('destination', type=str, help='''
             A file path to the directory where the embryo should be generated.
             '''.format(', '.join(embryo_names)))
         parser.add_argument('--name', type=str, default='', help='''

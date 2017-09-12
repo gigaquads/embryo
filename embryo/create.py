@@ -11,6 +11,7 @@ from jinja2 import Template
 from embryo import Project
 
 from .exceptions import TemplateNotFound
+from .environment import build_env
 
 
 class EmbryoGenerator(object):
@@ -22,6 +23,7 @@ class EmbryoGenerator(object):
             os.getcwd(),
             self.embryos_dir,
         ]
+        self.env = build_env()
 
     def create(self):
         args = self.parse_args()
@@ -111,7 +113,8 @@ class EmbryoGenerator(object):
                     continue
                 file_path = os.path.join(root, file_name)
                 rel_path = file_path.replace(templates_dir, '').lstrip('/')
-                render_path = Template(rel_path).render(context)
+                render_path = self.env.from_string(rel_path).render(context)
+
                 with open(file_path) as f_in:
                     try:
                         templates[render_path] = f_in.read()
@@ -124,7 +127,7 @@ class EmbryoGenerator(object):
         file_path = os.path.join(self.embryo_path, 'tree.yml')
         with open(file_path) as tree_file:
             tree_yml_tpl = tree_file.read()
-            tree_yml = Template(tree_yml_tpl).render(context)
+            tree_yml = self.env.from_string(tree_yml_tpl).render(context)
             return tree_yml
 
     def load_context(self, args):
@@ -138,22 +141,14 @@ class EmbryoGenerator(object):
             if not context:
                 context = {}
 
-        name_parts = re.sub(r'([a-z])([A-Z])', r'\1 \2', args.name).split(' ')
+        #name_parts = re.sub(r'([a-z])([A-Z])', r'\1 \2', args.name).split(' ')
 
         context.update({
             'args':
             {k: getattr(args, k)
              for k in dir(args) if not k.startswith('_')},
-            'embryo_name':
-            args.embryo,  # XXX: use of these is deprecated
-            'project_name':
-            args.name,
-            'project_name_display':
-            ' '.join(name_parts),
-            'project_name_snake_case':
-            '_'.join(name_parts).lower(),
-            'project_name_dash_case':
-            '-'.join(name_parts).lower(),
+            'embryo_name': args.embryo,  # XXX: use of these is deprecated
+            'project_name': args.name,
         })
 
         return context

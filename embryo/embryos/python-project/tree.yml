@@ -1,0 +1,10 @@
+---
+- {{ project_name|dashed }}/:
+  - README.md
+  - requirements.txt
+  - setup.py
+  - {{ project_name|snaked }}:
+    - __init__.py
+  - bin/:
+    - {{ project_name|dashed }}
+...

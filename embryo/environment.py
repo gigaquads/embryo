@@ -1,19 +1,7 @@
 import re
 import jinja2
 
-
-def snaked(value):
-    """
-    Snaked filter for jinja to provide snake casing `such_as_this`
-    """
-    return re.sub(r'([a-z])([A-Z])', r'\1_\2', value).lower()
-
-
-def dashed(value):
-    """
-    Dashed filter for jinja to provide lisp-style casing `such-as-this`
-    """
-    return re.sub(r'([a-z])([A-Z])', r'\1-\2', value).lower()
+from .text_transform import TextTransform
 
 
 def build_env():
@@ -28,7 +16,10 @@ def build_env():
     loader = jinja2.FileSystemLoader('/tmp')
     env = jinja2.Environment(autoescape=True, loader=loader)
 
-    env.filters['snaked'] = snaked
-    env.filters['dashed'] = dashed
+    env.filters['snaked'] = TextTransform.snake
+    env.filters['dashed'] = TextTransform.dash
+    env.filters['title'] = TextTransform.title
 
+    import ipdb
+    ipdb.set_trace()
     return env

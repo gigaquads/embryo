@@ -9,6 +9,7 @@ from jinja2 import Template
 from yapf.yapflib.yapf_api import FormatCode
 
 from .constants import RE_RENDERING_METADATA, STYLE_CONFIG
+from .environment import build_env
 from .exceptions import TemplateNotFound
 
 
@@ -22,6 +23,7 @@ class Project(object):
     def __init__(self, root: str, tree: str, templates=None):
 
         self.root = root.rstrip('/')
+        self.env = build_env()
 
         # if templates is a module extract its public string attributes
         # into the templates dict expected below.
@@ -40,7 +42,7 @@ class Project(object):
             if isinstance(v, Template):
                 self.templates[k] = v
             else:
-                self.templates[k] = Template(v)
+                self.templates[k] = self.env.from_string(v)
 
         self.file_paths = set()
         self.directory_paths = set()

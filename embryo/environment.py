@@ -9,7 +9,11 @@ def build_env():
     Create an instance of jinja Environment
     Templates are ideally generated from this, e.g.,
 
-    `env.from_string('Hello {{ name }}').render(dict(name='Johnny'))`
+    ```
+    tpl = env.from_string('Hello {{ name }}')
+    tpl.render(dict(name='Johnny'))
+    > "Hello Johnny"
+    ```
 
     Custom filters are applied here
     """
@@ -20,6 +24,4 @@ def build_env():
     env.filters['dash'] = TextTransform.dash
     env.filters['title'] = TextTransform.title
 
-    import ipdb
-    ipdb.set_trace()
     return env

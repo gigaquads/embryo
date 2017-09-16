@@ -25,9 +25,7 @@ class EmbryoGenerator(object):
         ]
         self.env = build_env()
 
-    def create(self):
-        args = self.parse_args()
-
+    def create(self, args):
         if '/' in args.embryo:
             self.embryo_path = args.embryo
         else:
@@ -55,50 +53,14 @@ class EmbryoGenerator(object):
             print('>>> Running post_create hook...')
             hooks.post_create(project, context)
 
-    def parse_args(self):
-        embryo_names = [
+    def embryo_names(self):
+        """
+        A list of all embryos by name
+        """
+        return [
             x for x in os.listdir(self.embryos_dir)
             if os.path.isdir(self.embryos_dir + '/' + x)
         ]
-
-        parser = argparse.ArgumentParser()
-        parser.add_argument(
-            'embryo',
-            type=str,
-            help='''
-            The name of the embryo to generate. Built-ins include: {}.
-            '''.format(', '.join(embryo_names)))
-        parser.add_argument(
-            'destination',
-            type=str,
-            help='''
-            A file path to the directory where the embryo should be generated.
-            '''.format(', '.join(embryo_names)))
-        parser.add_argument(
-            '--name',
-            type=str,
-            default='',
-            help='''
-            The name of the project you're creating.
-            ''')
-
-        args, unknown = parser.parse_known_args()
-
-        # now combine known and unknown arguments into a single dict
-        args_dict = {
-            k: getattr(args, k)
-            for k in dir(args) if not k.startswith('_')
-        }
-
-        for i in range(0, len(unknown), 2):
-            k = unknown[i]
-            v = unknown[i + 1]
-            args_dict[k.lstrip('-')] = v
-
-        # build a custom type with the combined argument names as attributes
-        arguments = type('Arguments', (object, ), args_dict)()
-
-        return arguments
 
     def load_templates(self, embryo: str, context: dict=None):
         templates_dir = os.path.join(self.embryo_path, 'templates')

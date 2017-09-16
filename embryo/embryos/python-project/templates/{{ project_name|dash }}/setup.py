@@ -45,7 +45,7 @@ if __name__ == '__main__':
         name='{{project_name|title}}',
         version='{{python_project_version}}',
         description='{{python_project_description}}',
-        long_description=README,
-        install_requires=REQUIREMENTS,
-        scripts=SCRIPTS,
+        long_description=readme,
+        install_requires=requirements,
+        scripts=scripts,
         packages=find_packages(), )

@@ -16,8 +16,8 @@ def build_env():
     loader = jinja2.FileSystemLoader('/tmp')
     env = jinja2.Environment(autoescape=True, loader=loader)
 
-    env.filters['snaked'] = TextTransform.snake
-    env.filters['dashed'] = TextTransform.dash
+    env.filters['snake'] = TextTransform.snake
+    env.filters['dash'] = TextTransform.dash
     env.filters['title'] = TextTransform.title
 
     import ipdb

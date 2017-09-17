@@ -1,4 +1,4 @@
-from {{ project_name_snake_case }}.api import api
+from {{ project_name|snake }}.api import api
 
 
 api.bootstrap()

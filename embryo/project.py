@@ -1,4 +1,5 @@
 import os
+from os.path import join
 
 import yaml
 
@@ -8,6 +9,7 @@ from jinja2 import Template
 from yapf.yapflib.yapf_api import FormatCode
 
 from .constants import RE_RENDERING_METADATA, STYLE_CONFIG
+from .environment import build_env
 from .exceptions import TemplateNotFound
 
 
@@ -19,7 +21,9 @@ class Project(object):
     """
 
     def __init__(self, root: str, tree: str, templates=None):
+
         self.root = root.rstrip('/')
+        self.env = build_env()
 
         # if templates is a module extract its public string attributes
         # into the templates dict expected below.
@@ -38,7 +42,7 @@ class Project(object):
             if isinstance(v, Template):
                 self.templates[k] = v
             else:
-                self.templates[k] = Template(v)
+                self.templates[k] = self.env.from_string(v)
 
         self.file_paths = set()
         self.directory_paths = set()
@@ -53,6 +57,8 @@ class Project(object):
         returns a dict-based tree structure.
         """
         result = {}
+        if not tree:
+            return result
         for obj in tree:
             if isinstance(obj, dict):
                 k = list(obj.keys())[0]
@@ -64,33 +70,40 @@ class Project(object):
                     file_name = k
                     match = RE_RENDERING_METADATA.match(v)
                     tpl_name, ctx_key = match.groups()
-                    file_path = parent_path + '/' + file_name
+                    file_path = join(parent_path, file_name)
                     self.render_metadata[file_path] = {
                         'template_name': tpl_name,
                         'context_path': ctx_key,
-                        }
+                    }
                     self.file_paths.add(file_path)
                     result[k] = True
                 else:
                     # call _init_tree on subdirectory
-                    path = parent_path + '/' + k
+                    path = join(parent_path, k)
                     result[k] = self._init_tree(obj[k], path)
                     self.directory_paths.add(path)
             elif obj.endswith('/'):
                 # it'sn empty directory name
                 dir_name = obj
-                self.directory_paths.add(parent_path + '/' + dir_name)
+                self.directory_paths.add(join(parent_path, dir_name))
                 result[dir_name] = False
             else:
                 # it's a plain ol' file name
                 file_name = obj
-                file_path = parent_path + '/' + file_name
+                file_path = join(parent_path, file_name)
                 self.file_paths.add(file_path)
-                if file_name in self.templates:
+                if file_path in self.templates:
+                    # attempt to resolve the full path
+                    self.render_metadata[file_path] = {
+                        'template_name': file_path,
+                        'context_path': None,
+                    }
+                elif file_name in self.templates:
+                    # top-level resolution of file name only
                     self.render_metadata[file_path] = {
                         'template_name': file_name,
                         'context_path': None,
-                        }
+                    }
                 result[file_name] = True
         return result
 
@@ -121,10 +134,7 @@ class Project(object):
 
                 # render the template to file_path
                 self.render(
-                        file_path,
-                        tpl_name,
-                        ctx_obj,
-                        style_config=style_config)
+                    file_path, tpl_name, ctx_obj, style_config=style_config)
 
     def touch(self) -> None:
         """
@@ -134,20 +144,18 @@ class Project(object):
         if not os.path.exists(self.root):
             os.makedirs(self.root)
         for dir_path in self.directory_paths:
-            path = self.root + dir_path
+            path = join(self.root, dir_path)
             if not os.path.exists(path):
                 os.makedirs(path)
         for file_path in self.file_paths:
-            path = self.root + file_path
+            path = join(self.root, file_path)
             open(path, 'a').close()
 
-    def render(
-            self,
-            file_path: str,
-            template_name: str,
-            context: dict,
-            style_config: dict=None
-        ) -> None:
+    def render(self,
+               file_path: str,
+               template_name: str,
+               context: dict,
+               style_config: dict=None) -> None:
         """
         Renders a template to a file, provided that the `file_path` provided is
         recognized by this `Project`.
@@ -161,7 +169,8 @@ class Project(object):
         rendered_text = template.render(context).strip()
 
         if file_path.endswith('.py'):
-            formatted_text = FormatCode(rendered_text, style_config=style_config)[0]
+            formatted_text = FormatCode(
+                rendered_text, style_config=style_config)[0]
         else:
             formatted_text = rendered_text
 
@@ -172,9 +181,9 @@ class Project(object):
         Writes a string to a file, provided that the `file_path` provided is
         recognized by this `Project`.
         """
-        file_path = '/' + file_path.strip('/')
+        file_path = file_path.strip('/')
         assert file_path in self.file_paths
-        path = self.root + file_path
+        path = join(self.root, file_path)
         with open(path, 'w') as f_out:
             f_out.write(text)
 

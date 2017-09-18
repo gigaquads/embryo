@@ -33,10 +33,10 @@ def build_parser():
         ''')
 
     parser.add_argument(
-        'zygote',
+        'embryo',
         type=str,
         help='''
-        The name of the zygote for embryonic generation.
+        The name of the embryo for embryonic generation.
         ''')
     parser.add_argument(
         '-d',
@@ -64,10 +64,10 @@ def build_parser():
 
 
 def built_ins():
-    zygote_names = []
+    embryo_names = []
     listof = '''
-    Built-in zygote's include: {}.
-    '''.format(', '.join(zygote_names))
+    Built-in embryo's include: {}.
+    '''.format(', '.join(embryo_names))
     return listof
 
 
@@ -97,7 +97,6 @@ def main():
     """
     parser = build_parser()
     args = parse_args(parser)
-    args.embryo = args.zygote  # XXX backwards compat
     args.destination = args.dest
 
     # as `elif`, add additional routing here

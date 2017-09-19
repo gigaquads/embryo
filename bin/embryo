@@ -55,6 +55,12 @@ def build_parser():
         The name of the project you're creating.
         ''')
     parser.add_argument(
+        '-c',
+        '--context',
+        help='''
+        Path to a context .json or .yml file.',
+        ''')
+    parser.add_argument(
         '-v',
         '--version',
         action='version',

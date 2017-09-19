@@ -1,4 +1,5 @@
 import os
+import sys
 import re
 import traceback
 import importlib
@@ -26,6 +27,7 @@ class EmbryoGenerator(object):
         self.env = build_env()
 
     def create(self, args):
+        self.args = args
         if '/' in args.embryo:
             self.embryo_path = args.embryo
         else:
@@ -36,17 +38,20 @@ class EmbryoGenerator(object):
                     break
 
         context = self.load_context(args)
-        tree = self.load_tree_yaml(args.embryo, context)
-        templates = self.load_templates(args.embryo, context)
         hooks = self.load_hooks()
-        project = Project(
-            root=args.destination, tree=tree, templates=templates)
 
         if hooks.pre_create:
             print('>>> Running pre_create hook...')
-            hooks.pre_create(project, context, tree, templates)
+            hooks.pre_create(context)
+
+        tree = self.load_tree_yaml(args.embryo, context)
+        templates = self.load_templates(args.embryo, context)
 
         print('>>> Creating embryo...')
+
+        root = args.destination
+        project = Project(root=root, tree=tree, templates=templates)
+
         project.build(context)
 
         if hooks.post_create:
@@ -113,21 +118,39 @@ class EmbryoGenerator(object):
             'project_name': args.name,
         })
 
+        context_filepath = getattr(args, 'context', None)
+        if context_filepath:
+            if context_filepath.endswith('.json'):
+                with open(context_filepath) as context_file:
+                    data = json.load(context_file)
+            elif context_filepath.endswith('.yml'):
+                with open(context_filepath) as context_file:
+                    data = yaml.load(context_file)
+
+            context.update(data)
+
         return context
 
     def load_hooks(self):
-        old_cwd = os.getcwd()
-        os.chdir(self.embryo_path)
+        if self.embryo_path.startswith('/'):
+            abs_dirpath = self.embryo_path
+        else:
+            abs_dirpath = os.path.realpath(self.embryo_path)
 
-        if os.path.isfile('hooks.py'):
+        abs_filepath = os.path.join(abs_dirpath, 'hooks.py')
+
+        if os.path.isfile(abs_filepath):
+            sys.path.append(abs_dirpath)
+
             module = importlib.import_module('hooks')
             hook_manager = HookManager(
                 pre_create=getattr(module, 'pre_create', None),
                 post_create=getattr(module, 'post_create', None), )
+
+            sys.path.pop()
         else:
             hook_manager = HookManager()
 
-        os.chdir(old_cwd)
         return hook_manager
 
 

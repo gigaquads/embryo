@@ -108,8 +108,6 @@ class EmbryoGenerator(object):
             if not context:
                 context = {}
 
-        #name_parts = re.sub(r'([a-z])([A-Z])', r'\1 \2', args.name).split(' ')
-
         context.update({
             'args':
             {k: getattr(args, k)
@@ -140,13 +138,12 @@ class EmbryoGenerator(object):
         abs_filepath = os.path.join(abs_dirpath, 'hooks.py')
 
         if os.path.isfile(abs_filepath):
+            print(abs_filepath)
             sys.path.append(abs_dirpath)
-
             module = importlib.import_module('hooks')
             hook_manager = HookManager(
                 pre_create=getattr(module, 'pre_create', None),
                 post_create=getattr(module, 'post_create', None), )
-
             sys.path.pop()
         else:
             hook_manager = HookManager()

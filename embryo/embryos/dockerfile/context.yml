@@ -1,0 +1,9 @@
+---
+preset:
+  postgres:
+    image: postgres:9.6
+  nginx:
+    image: nginx:1.12
+  python:
+    image: python:3.5
+...

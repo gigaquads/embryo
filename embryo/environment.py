@@ -23,5 +23,6 @@ def build_env():
     env.filters['snake'] = TextTransform.snake
     env.filters['dash'] = TextTransform.dash
     env.filters['title'] = TextTransform.title
+    env.filters['camel'] = TextTransform.camel
 
     return env

@@ -65,3 +65,10 @@ class TextTransform(object):
         Dash case `such-as-this`
         """
         return re.sub(r'\s', r'-', cls.normalize(value)).lower()
+
+    @classmethod
+    def camel(cls, value):
+        """
+        Camel case, `SuchAsThis`
+        """
+        return re.sub(r'\s', '', cls.title(value))

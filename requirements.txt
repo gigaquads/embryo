@@ -1,6 +1,7 @@
 pyyaml
 jinja2
 yapf
+gitpython
 
 pytest
 ipdb

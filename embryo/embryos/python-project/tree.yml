@@ -1,10 +1,10 @@
 ---
-- {{ project_name|dash }}/:
+- {{ name|dash }}/:
   - README.md
   - requirements.txt
   - setup.py
-  - {{ project_name|snake }}:
+  - {{ name|snake }}:
     - __init__.py
   - bin/:
-    - {{ project_name|dash }}
+    - {{ name|dash }}
 ...

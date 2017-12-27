@@ -2,6 +2,14 @@ class EmbryoError(Exception):
     pass
 
 
+class EmbryoNotFound(EmbryoError):
+    def __init__(self, embryo_path):
+        message = (
+            'Embryo "{}" does not exist.  make sure you have '
+            'the right path to the embryo directory ').format(embryo_path)
+        super().__init__(message)
+
+
 class TemplateNotFound(EmbryoError):
     def __init__(self, template_name):
         message = (

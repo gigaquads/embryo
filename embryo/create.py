@@ -116,8 +116,7 @@ class EmbryoGenerator(object):
             'args':
             {k: getattr(args, k)
              for k in dir(args) if not k.startswith('_')},
-            'embryo_name': args.embryo,  # XXX: use of these is deprecated
-            'project_name': args.name,
+            'embryo_name': args.embryo
         })
 
         context_filepath = getattr(args, 'context', None)

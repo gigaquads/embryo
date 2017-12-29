@@ -19,17 +19,6 @@ def tag():
     return TAG_FORMAT.format(**dict(CONFIG))
 
 
-"""
-dict(
-    #
-    parser=dict(
-        #
-        defaults=dict(action=None),
-        version=(
-        parser=dict())
-        ))
-"""
-
 def build_parser():
     """
     Build parser for interactivity
@@ -127,6 +116,6 @@ def main():
 
 if __name__ == "__main__":
     try:
-      main()
+        main()
     except Exception as error:
-      print("ERROR {}".format(error))
+        print("ERROR {}".format(error))

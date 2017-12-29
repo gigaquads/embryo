@@ -77,8 +77,6 @@ def build_parser():
         Path to a context .json or .yml file.',
         ''')
 
-    #create = ArgumentParser.add_subparsers('create')
-    group = parser.add_argument_group('version')
     return parser
 
 

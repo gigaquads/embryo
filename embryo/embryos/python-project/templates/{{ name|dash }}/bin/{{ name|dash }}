@@ -21,16 +21,28 @@ def build_parser():
     """
     Build parser for interactivity
     """
-
-    parser = argparse.ArgumentParser()
-    action = argparse.ArgumentParser(parents=[parser])
+    # setup the parser with defaults and version information
+    parser = argparse.ArgumentParser(prog=CONFIG['prog'])
+    parser.set_defaults(action=None)
     parser.add_argument(
-        'action',
+        '-v',
+        '--version',
+        action='version',
+        help='The version of this damn script',
+        version=tag())
+
+    # build subparsers for actionable requests
+    subparsers = parser.add_subparsers(
+        title='subcommands', help='sub-command help')
+    create = subparsers.add_parser('new', help='Create')
+    create.set_defaults(action='create')
+    create.add_argument(
+        'obj',
         type=str,
-        choices=['new'],
         help='''
-        The action to perform
+        Create an object for {{ name|title }}
         ''')
+
     return parser
 
 
@@ -61,18 +73,10 @@ def main():
     parser = build_parser()
     args = parse_args(parser)
     action = args.action
-    if not action:
-        parser.add_argument(
-            '-v',
-            '--version',
-            action='version',
-            help='The version information for this script',
-            version=tag())
-
     # as `elif`, add additional routing here
     # order is important
     if action == 'new':
-        print('Not implemented')
+        print('TODO Implement')
     else:
         parser.print_usage()
 

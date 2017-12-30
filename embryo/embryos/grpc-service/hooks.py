@@ -6,14 +6,11 @@ from pybiz.grpc import GrpcDriver
 
 
 def pre_create(project, context, tree, templates):
-    dest = context['args']['destination']
+    dest = context['args']['dest']
     command = ' '.join([
-        'python -m grpc_tools.protoc',
-        '-I {dest}',
-        '--python_out={dest}',
-        '--grpc_python_out={dest}',
-        '{dest}/service.proto'
-        ]).format(dest=dest)
+        'python -m grpc_tools.protoc', '-I {dest}', '--python_out={dest}',
+        '--grpc_python_out={dest}', '{dest}/service.proto'
+    ]).format(dest=dest)
 
     print(command)
     output = sp.getoutput(command)

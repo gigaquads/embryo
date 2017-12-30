@@ -13,7 +13,7 @@ from jinja2 import Template
 
 from embryo import Project
 
-from .exceptions import TemplateNotFound
+from .exceptions import EmbryoNotFound, TemplateLoadFailed
 from .environment import build_env
 
 
@@ -39,6 +39,8 @@ class EmbryoGenerator(object):
                     self.embryo_path = embryo_path
                     break
 
+        if not self.embryo_path:
+            raise EmbryoNotFound(args.embryo)
         # ensure the embryo_path is absolute
         self.embryo_path = os.path.realpath(self.embryo_path)
 
@@ -60,7 +62,7 @@ class EmbryoGenerator(object):
 
         pprint(context, indent=2)
 
-        root = args.destination
+        root = args.dest
         project = Project(root=root, tree=tree, templates=templates)
 
         project.build(context)
@@ -114,8 +116,7 @@ class EmbryoGenerator(object):
             'args':
             {k: getattr(args, k)
              for k in dir(args) if not k.startswith('_')},
-            'embryo_name': args.embryo,  # XXX: use of these is deprecated
-            'project_name': args.name,
+            'embryo_name': args.embryo
         })
 
         context_filepath = getattr(args, 'context', None)

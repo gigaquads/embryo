@@ -7,38 +7,43 @@ import sys
 
 from embryo.create import EmbryoGenerator
 
-_NAME = "Embryo"
-_VERSION = "1.0"
-_TAGLINE = "monads beware"
-_FORMAT = "{name} {version}, {tagline}"
+CONFIG = dict(
+    prog='embryo',
+    name='Embryo',
+    version='1.0',
+    tagline="not your momma's scaffolding tool")
+TAG_FORMAT = "{name} {version}, {tagline}"
 
 
 def tag():
-    return _FORMAT.format(**dict(
-        name=_NAME, version=_VERSION, tagline=_TAGLINE))
+    return TAG_FORMAT.format(**dict(CONFIG))
 
 
 def build_parser():
     """
     Build parser for interactivity
     """
-
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(prog=CONFIG['prog'])
+    parser.set_defaults(action=None)
     parser.add_argument(
-        'action',
-        type=str,
-        choices=['create', 'list'],
-        help='''
-        The embryo action to perform
-        ''')
+        '-v',
+        '--version',
+        action='version',
+        help='The version of embryo',
+        version=tag())
 
-    parser.add_argument(
+    subparsers = parser.add_subparsers(
+        title='subcommands', help='sub-command help')
+    create = subparsers.add_parser('create', help='generate new embryo')
+    create.set_defaults(action='create')
+
+    create.add_argument(
         'embryo',
         type=str,
         help='''
         The name of the embryo for embryonic generation.
         ''')
-    parser.add_argument(
+    create.add_argument(
         '-d',
         '--dest',
         type=str,
@@ -46,7 +51,7 @@ def build_parser():
         help='''
         Destination path to the directory where the embryo should be generated.
         ''')
-    parser.add_argument(
+    create.add_argument(
         '-n',
         '--name',
         type=str,
@@ -54,18 +59,13 @@ def build_parser():
         help='''
         The name of the project you're creating.
         ''')
-    parser.add_argument(
+    create.add_argument(
         '-c',
         '--context',
         help='''
         Path to a context .json or .yml file.',
         ''')
-    parser.add_argument(
-        '-v',
-        '--version',
-        action='version',
-        help='The version of embryo',
-        version=tag())
+
     return parser
 
 
@@ -77,24 +77,25 @@ def built_ins():
     return listof
 
 
-def parse_args(parser):
-    args, unknown = parser.parse_known_args()
+class Arguments():
+    def parse(parser, argnames: str=None):
+        args, unknown = parser.parse_known_args(argnames)
 
-    # now combine known and unknown arguments into a single dict
-    args_dict = {
-        k: getattr(args, k)
-        for k in dir(args) if not k.startswith('_')
-    }
+        # now combine known and unknown arguments into a single dict
+        args_dict = {
+            k: getattr(args, k)
+            for k in dir(args) if not k.startswith('_')
+        }
 
-    for i in range(0, len(unknown), 2):
-        k = unknown[i]
-        v = unknown[i + 1]
-        args_dict[k.lstrip('-')] = v
+        for i in range(0, len(unknown), 2):
+            k = unknown[i]
+            v = unknown[i + 1]
+            args_dict[k.lstrip('-')] = v
 
-    # build a custom type with the combined argument names as attributes
-    arguments = type('Arguments', (object, ), args_dict)()
+        # build a custom type with the combined argument names as attributes
+        arguments = type('Arguments', (object, ), args_dict)()
 
-    return arguments
+        return arguments
 
 
 def main():
@@ -102,19 +103,19 @@ def main():
     Main
     """
     parser = build_parser()
-    args = parse_args(parser)
-    args.destination = args.dest
-
+    args = Arguments.parse(parser)
     # as `elif`, add additional routing here
     # order is important
-    if args.action == 'create':
-        gen = EmbryoGenerator().create(args)
-    elif args.action == 'list':
-        print('Not supported')
-    else:
+    if not args.action:
         parser.print_usage()
         print(built_ins())
+    else:
+        gen = EmbryoGenerator()
+        getattr(gen, args.action)(args)
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as error:
+        print("ERROR {}".format(error))

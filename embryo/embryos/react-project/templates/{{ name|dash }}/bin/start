@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Simple init script for {{ name|title }}
+
+# Run yarn, default action is to install
+# this will install what is needed for operation
+yarn
+
+# Start with yarn
+yarn start

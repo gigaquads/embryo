@@ -1,0 +1,11 @@
+---
+preset:
+  postgres:
+    image: postgres:9.6
+  nginx:
+    image: nginx:1.12
+  python:
+    image: python:3.6
+  ruby:
+    image: ruby:2.4
+...

@@ -1,0 +1,14 @@
+---
+- {{ name|dash }}:
+  - bin:
+    - start
+  - client:
+    - components:
+      - App.jsx
+    - index.html
+    - index.js
+  - .babelrc
+  - package.json
+  - webpack.config.js
+  - README.md
+...

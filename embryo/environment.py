@@ -18,7 +18,7 @@ def build_env():
     Custom filters are applied here
     """
     loader = jinja2.FileSystemLoader('/tmp')
-    env = jinja2.Environment(autoescape=True, loader=loader)
+    env = jinja2.Environment(autoescape=True, loader=loader, trim_blocks=True)
 
     env.filters['snake'] = TextTransform.snake
     env.filters['dash'] = TextTransform.dash

@@ -7,6 +7,7 @@ from types import ModuleType
 
 from jinja2 import Template
 from yapf.yapflib.yapf_api import FormatCode
+from appyratus.yaml import Yaml
 
 from .constants import RE_RENDERING_METADATA, STYLE_CONFIG
 from .environment import build_env
@@ -20,7 +21,11 @@ class Project(object):
     the rendering of templates into said files.
     """
 
-    def __init__(self, root: str, tree: str, templates=None):
+    def __init__(self, root: str, tree: str, templates=None,
+                 dependencies=None):
+        """
+        Initialize a project
+        """
 
         self.root = root.rstrip('/')
         self.env = build_env()
@@ -28,6 +33,9 @@ class Project(object):
         # if templates is a module extract its public string attributes
         # into the templates dict expected below.
         self.templates = {}
+
+        # dependencies allow for specific ordering of templates in an embryo
+        self.dependencies = dependencies
 
         if isinstance(templates, ModuleType):
             tmp_templates = {}
@@ -51,7 +59,7 @@ class Project(object):
         # finally, initializes the instance attributes declared above.
         self.tree = self._init_tree(yaml.load(tree))
 
-    def _init_tree(self, tree, parent_path: str='') -> dict:
+    def _init_tree(self, tree, parent_path: str = '') -> dict:
         """
         Initializes `directory_paths`, `file_paths`, and `render_metadata`. It
         returns a dict-based tree structure.
@@ -63,7 +71,6 @@ class Project(object):
             if isinstance(obj, dict):
                 k = list(obj.keys())[0]
                 v = obj[k]
-
                 if isinstance(v, str):
                     # in this case, we have a file name with associated
                     # template rendering metadata we must parse out.
@@ -85,6 +92,7 @@ class Project(object):
             elif obj.endswith('/'):
                 # it'sn empty directory name
                 dir_name = obj
+
                 self.directory_paths.add(join(parent_path, dir_name))
                 result[dir_name] = False
             else:
@@ -107,7 +115,7 @@ class Project(object):
                 result[file_name] = True
         return result
 
-    def build(self, context: dict, style_config: dict=None) -> None:
+    def build(self, context: dict, style_config: dict = None) -> None:
         """
         Args:
             - context: a context dict for use by jinja2 templates.
@@ -155,7 +163,7 @@ class Project(object):
                file_path: str,
                template_name: str,
                context: dict,
-               style_config: dict=None) -> None:
+               style_config: dict = None) -> None:
         """
         Renders a template to a file, provided that the `file_path` provided is
         recognized by this `Project`.

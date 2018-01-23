@@ -4,14 +4,11 @@ import re
 import traceback
 import importlib
 import argparse
-
-import yaml
-
 from pprint import pprint
-
 from jinja2 import Template
 
 from embryo import Project
+from appyratus.yaml import Yaml
 
 from .exceptions import EmbryoNotFound, TemplateLoadFailed
 from .environment import build_env
@@ -55,6 +52,7 @@ class EmbryoGenerator(object):
 
         tree = self.load_tree_yaml(args.embryo, context)
         templates = self.load_templates(args.embryo, context)
+        dependencies = self.load_dependencies()
 
         print('>>> Creating embryo...')
         print('-' * 80)
@@ -63,15 +61,18 @@ class EmbryoGenerator(object):
         pprint(context, indent=2)
 
         root = args.dest
-        project = Project(root=root, tree=tree, templates=templates)
-
+        project = Project(
+            root=root,
+            tree=tree,
+            templates=templates,
+            dependencies=dependencies)
         project.build(context)
 
         if hooks.post_create:
             print('>>> Running post_create hook...')
             hooks.post_create(project, context)
 
-    def load_templates(self, embryo: str, context: dict=None):
+    def load_templates(self, embryo: str, context: dict = None):
         templates_dir = os.path.join(self.embryo_path, 'templates')
         templates = {}
 
@@ -94,6 +95,11 @@ class EmbryoGenerator(object):
 
         return templates
 
+    def load_dependencies(self):
+        file_path = os.path.join(self.embryo_path, 'deps.yml')
+        data = Yaml.from_file(file_path)
+        return data
+
     def load_tree_yaml(self, embryo: str, context: dict):
         file_path = os.path.join(self.embryo_path, 'tree.yml')
         with open(file_path) as tree_file:
@@ -103,14 +109,9 @@ class EmbryoGenerator(object):
 
     def load_context(self, args):
         file_path = '{}/context.yml'.format(self.embryo_path)
-
-        if not os.path.exists(file_path):
+        context = Yaml.from_file(file_path)
+        if not context:
             context = {}
-        else:
-            with open(file_path) as context_file:
-                context = yaml.load(context_file)
-            if not context:
-                context = {}
 
         context.update({
             'args':
@@ -125,8 +126,7 @@ class EmbryoGenerator(object):
                 with open(context_filepath) as context_file:
                     data = json.load(context_file)
             elif context_filepath.endswith('.yml'):
-                with open(context_filepath) as context_file:
-                    data = yaml.load(context_file)
+                data = Yaml.from_file(context_filepath)
 
             context.update(data)
 
@@ -138,7 +138,8 @@ class EmbryoGenerator(object):
             module = importlib.import_module('hooks')
             hook_manager = HookManager(
                 pre_create=getattr(module, 'pre_create', None),
-                post_create=getattr(module, 'post_create', None), )
+                post_create=getattr(module, 'post_create', None),
+            )
         else:
             hook_manager = HookManager()
 

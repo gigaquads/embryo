@@ -10,6 +10,7 @@ from jinja2 import Template
 from embryo import Project
 from appyratus.yaml import Yaml
 
+from .hooks import HookManager
 from .exceptions import EmbryoNotFound, TemplateLoadFailed
 from .environment import build_env
 
@@ -144,12 +145,6 @@ class EmbryoGenerator(object):
             hook_manager = HookManager()
 
         return hook_manager
-
-
-class HookManager(object):
-    def __init__(self, pre_create=None, post_create=None):
-        self.pre_create = pre_create
-        self.post_create = post_create
 
 
 if __name__ == '__main__':

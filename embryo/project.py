@@ -189,8 +189,8 @@ class Project(object):
         Writes a string to a file, provided that the `file_path` provided is
         recognized by this `Project`.
         """
-        file_path = file_path.strip('/')
         assert file_path in self.file_paths
+        file_path = file_path.strip('/')
         path = join(self.root, file_path)
         with open(path, 'w') as f_out:
             f_out.write(text)

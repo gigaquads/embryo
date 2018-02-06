@@ -54,7 +54,7 @@ class EmbryoGenerator(object):
 
         sys.path.append(self.embryo_path)
 
-        context = self.load_context(context)
+        context = self.load_context(name, context)
         hooks = self.load_hooks()
 
         if hooks.pre_create:
@@ -123,8 +123,8 @@ class EmbryoGenerator(object):
         context = Yaml.from_file(file_path)
         if not context:
             context = {}
-
-        context.update({'embryo_name': name, 'args': data})
+        context.update(data)
+        #context.update({'embryo_name': name, 'args': data})
 
         context_filepath = getattr(data, 'context', None)
         if context_filepath:

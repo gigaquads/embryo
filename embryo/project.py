@@ -152,11 +152,11 @@ class Project(object):
         if not os.path.exists(self.root):
             os.makedirs(self.root)
         for dir_path in self.directory_paths:
-            path = join(self.root, dir_path)
+            path = join(self.root, './{}'.format(dir_path))
             if not os.path.exists(path):
                 os.makedirs(path)
         for file_path in self.file_paths:
-            path = join(self.root, file_path)
+            path = join(self.root, './{}'.format(file_path))
             open(path, 'a').close()
 
     def render(self,

@@ -2,6 +2,7 @@ import os
 import sys
 import re
 import traceback
+import inspect
 import importlib
 import argparse
 from pprint import pprint
@@ -16,6 +17,14 @@ from .environment import build_env
 
 
 class EmbryoGenerator(object):
+    @classmethod
+    def from_args(cls, args):
+        context = {
+            k: getattr(args, k)
+            for k in dir(args) if not k.startswith('_')
+        }
+        return cls().create(embryo_name=data['embryo'], context=context)
+
     def __init__(self):
         self.env = build_env()
         self.here = os.path.dirname(os.path.realpath(__file__))
@@ -26,33 +35,34 @@ class EmbryoGenerator(object):
             path = os.environ['EMBRYO_PATH']
             self.embryo_search_path.extend(path.split(':'))
 
-    def create(self, args):
-        self.args = args
-        if '/' in args.embryo:
-            self.embryo_path = args.embryo
+    def create(self, name: str, dest: str = None, context: dict = None):
+        if inspect.ismodule(name):
+            self.embryo_path = name.__path__._path[0]
+        elif '/' in name:
+            self.embryo_path = name
         else:
             for path in self.embryo_search_path:
-                embryo_path = '{}/{}'.format(path.rstrip('/'), args.embryo)
+                embryo_path = '{}/{}'.format(path.rstrip('/'), name)
                 if os.path.exists(embryo_path):
                     self.embryo_path = embryo_path
                     break
 
         if not self.embryo_path:
-            raise EmbryoNotFound(args.embryo)
+            raise EmbryoNotFound(name)
         # ensure the embryo_path is absolute
         self.embryo_path = os.path.realpath(self.embryo_path)
 
         sys.path.append(self.embryo_path)
 
-        context = self.load_context(args)
+        context = self.load_context(context)
         hooks = self.load_hooks()
 
         if hooks.pre_create:
             print('>>> Running pre_create hook...')
             hooks.pre_create(context)
 
-        tree = self.load_tree_yaml(args.embryo, context)
-        templates = self.load_templates(args.embryo, context)
+        tree = self.load_tree_yaml(name, context)
+        templates = self.load_templates(name, context)
         dependencies = self.load_dependencies()
 
         print('>>> Creating embryo...')
@@ -61,7 +71,7 @@ class EmbryoGenerator(object):
 
         pprint(context, indent=2)
 
-        root = args.dest
+        root = dest
         project = Project(
             root=root,
             tree=tree,
@@ -108,20 +118,15 @@ class EmbryoGenerator(object):
             tree_yml = self.env.from_string(tree_yml_tpl).render(context)
             return tree_yml
 
-    def load_context(self, args):
+    def load_context(self, name: str, data: dict = None):
         file_path = '{}/context.yml'.format(self.embryo_path)
         context = Yaml.from_file(file_path)
         if not context:
             context = {}
 
-        context.update({
-            'args':
-            {k: getattr(args, k)
-             for k in dir(args) if not k.startswith('_')},
-            'embryo_name': args.embryo
-        })
+        context.update({'embryo_name': name, 'args': data})
 
-        context_filepath = getattr(args, 'context', None)
+        context_filepath = getattr(data, 'context', None)
         if context_filepath:
             if context_filepath.endswith('.json'):
                 with open(context_filepath) as context_file:

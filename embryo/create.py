@@ -23,7 +23,7 @@ class EmbryoGenerator(object):
             k: getattr(args, k)
             for k in dir(args) if not k.startswith('_')
         }
-        return cls().create(embryo_name=data['embryo'], context=context)
+        return cls().create(name=context['embryo'], context=context)
 
     def __init__(self):
         self.env = build_env()
@@ -71,7 +71,7 @@ class EmbryoGenerator(object):
 
         pprint(context, indent=2)
 
-        root = dest
+        root = dest or './'
         project = Project(
             root=root,
             tree=tree,

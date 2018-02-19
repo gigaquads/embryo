@@ -87,10 +87,11 @@ class Arguments():
             for k in dir(args) if not k.startswith('_')
         }
 
-        for i in range(0, len(unknown), 2):
-            k = unknown[i]
-            v = unknown[i + 1]
-            args_dict[k.lstrip('-')] = v
+        if unknown:
+            for i in range(0, len(unknown), 2):
+                k = unknown[i]
+                v = unknown[i + 2]
+                args_dict[k.lstrip('-')] = v
 
         # build a custom type with the combined argument names as attributes
         arguments = type('Arguments', (object, ), args_dict)()

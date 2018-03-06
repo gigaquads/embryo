@@ -1,4 +1,4 @@
-from appyratus.schema import Schema
+from appyratus.validation import Schema
 
 
 class HookManager(object):

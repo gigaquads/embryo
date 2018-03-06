@@ -7,7 +7,7 @@ from types import ModuleType
 
 from jinja2 import Template
 from yapf.yapflib.yapf_api import FormatCode
-from appyratus.yaml import Yaml
+from appyratus.io import Yaml
 
 from .constants import RE_RENDERING_METADATA, STYLE_CONFIG
 from .environment import build_env
@@ -21,8 +21,9 @@ class Project(object):
     the rendering of templates into said files.
     """
 
-    def __init__(self, root: str, tree: str, templates=None,
-                 dependencies=None):
+    def __init__(
+        self, root: str, tree: str, templates=None, dependencies=None
+    ):
         """
         Initialize a project
         """
@@ -124,7 +125,7 @@ class Project(object):
         1. Create the directories and files in the file system.
         2. Render templates into said files.
         """
-        self.touch()  # create the project file structure
+        self.touch()    # create the project file structure
 
         for file_path in self.file_paths:
             meta = self.render_metadata.get(file_path)
@@ -143,7 +144,8 @@ class Project(object):
                 # render the template to file_path
                 print(file_path)
                 self.render(
-                    file_path, tpl_name, ctx_obj, style_config=style_config)
+                    file_path, tpl_name, ctx_obj, style_config=style_config
+                )
 
     def touch(self) -> None:
         """
@@ -160,11 +162,13 @@ class Project(object):
             path = join(self.root, './{}'.format(file_path))
             open(path, 'a').close()
 
-    def render(self,
-               file_path: str,
-               template_name: str,
-               context: dict,
-               style_config: dict = None) -> None:
+    def render(
+        self,
+        file_path: str,
+        template_name: str,
+        context: dict,
+        style_config: dict = None
+    ) -> None:
         """
         Renders a template to a file, provided that the `file_path` provided is
         recognized by this `Project`.
@@ -179,7 +183,8 @@ class Project(object):
 
         if file_path.endswith('.py'):
             formatted_text = FormatCode(
-                rendered_text, style_config=style_config)[0]
+                rendered_text, style_config=style_config
+            )[0]
         else:
             formatted_text = rendered_text
 

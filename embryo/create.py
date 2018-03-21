@@ -9,7 +9,7 @@ from pprint import pprint
 from jinja2 import Template
 
 from embryo import Project
-from appyratus.yaml import Yaml
+from appyratus.io import Yaml
 
 from .hooks import HookManager
 from .exceptions import EmbryoNotFound, TemplateLoadFailed
@@ -76,7 +76,8 @@ class EmbryoGenerator(object):
             root=root,
             tree=tree,
             templates=templates,
-            dependencies=dependencies)
+            dependencies=dependencies
+        )
         project.build(context)
 
         if hooks.post_create:

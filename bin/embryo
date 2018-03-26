@@ -104,14 +104,11 @@ def main():
     """
     parser = build_parser()
     args = Arguments.parse(parser)
-    # as `elif`, add additional routing here
-    # order is important
-    if not args.action:
+    if args.action == 'create':
+        create = EmbryoGenerator.from_args(args)
+    else:
         parser.print_usage()
         print(built_ins())
-    else:
-        gen = EmbryoGenerator()
-        getattr(gen, args.action)(args)
 
 
 if __name__ == "__main__":
@@ -119,3 +116,4 @@ if __name__ == "__main__":
         main()
     except Exception as error:
         print("ERROR {}".format(error))
+        raise error

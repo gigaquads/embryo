@@ -7,7 +7,7 @@ from types import ModuleType
 
 from jinja2 import Template
 from yapf.yapflib.yapf_api import FormatCode
-from appyratus.io import Yaml
+from appyratus.types import Yaml
 
 from .constants import RE_RENDERING_METADATA, STYLE_CONFIG
 from .environment import build_env

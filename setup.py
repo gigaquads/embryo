@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# encoding=utf-8
 
 import os
 import re
@@ -23,8 +24,9 @@ if __name__ == '__main__':
             if line.startswith('-e'):
                 # we're looking at a github repo dependency, so
                 # isntall from a github tarball.
-                match = re.search(r'(https://github.+?)#egg=(.+)$',
-                                  line.strip())
+                match = re.search(
+                        r'(https://github.+?)#egg=(.+)$', line.strip()
+                )
                 url, egg = match.groups()
                 if url.endswith('.git'):
                     url = url[:-4]

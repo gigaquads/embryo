@@ -4,111 +4,58 @@
 
 import argparse
 import sys
+from appyratus.util.argz import Prog
 
 from embryo.create import EmbryoGenerator
 
-CONFIG = dict(
-    prog='embryo',
-    name='Embryo',
-    version='1.0',
-    tagline="not your momma's scaffolding tool")
-TAG_FORMAT = "{name} {version}, {tagline}"
+PROG = dict(
+    prog="embryo",
+    name="Embryo",
+    version="0",
+    tagline="Anaconda Beware",
+)
 
-
-def tag():
-    return TAG_FORMAT.format(**dict(CONFIG))
-
-
-def build_parser():
-    """
-    Build parser for interactivity
-    """
-    parser = argparse.ArgumentParser(prog=CONFIG['prog'])
-    parser.set_defaults(action=None)
-    parser.add_argument(
-        '-v',
-        '--version',
-        action='version',
-        help='The version of embryo',
-        version=tag())
-
-    subparsers = parser.add_subparsers(
-        title='subcommands', help='sub-command help')
-    create = subparsers.add_parser('create', help='generate new embryo')
-    create.set_defaults(action='create')
-
-    create.add_argument(
-        'embryo',
-        type=str,
-        help='''
-        The name of the embryo for embryonic generation.
-        ''')
-    create.add_argument(
-        '-d',
-        '--dest',
-        type=str,
-        default='./',
-        help='''
-        Destination path to the directory where the embryo should be generated.
-        ''')
-    create.add_argument(
-        '-n',
-        '--name',
-        type=str,
-        default='',
-        help='''
-        The name of the project you're creating.
-        ''')
-    create.add_argument(
-        '-c',
-        '--context',
-        help='''
-        Path to a context .json or .yml file.',
-        ''')
-
-    return parser
-
-
-def built_ins():
-    embryo_names = []
-    listof = '''
-    Built-in embryo's include: {}.
-    '''.format(', '.join(embryo_names))
-    return listof
-
-
-class Arguments():
-    def parse(parser, argnames: str=None):
-        args, unknown = parser.parse_known_args(argnames)
-
-        # now combine known and unknown arguments into a single dict
-        args_dict = {
-            k: getattr(args, k)
-            for k in dir(args) if not k.startswith('_')
-        }
-
-        for i in range(0, len(unknown), 2):
-            k = unknown[i]
-            v = unknown[i + 1]
-            args_dict[k.lstrip('-')] = v
-
-        # build a custom type with the combined argument names as attributes
-        arguments = type('Arguments', (object, ), args_dict)()
-
-        return arguments
-
+SUBPARSERS = [
+    dict(
+        name='create',
+        help='generate new embryo',
+        defaults=dict(action='create'),
+        args=[
+            dict(
+                flags=('embryo', ),
+                type=str,
+                help="The name of the embryo for embryonic generation."
+            ),
+            dict(
+                flags=('-d', '--dest'),
+                type=str,
+                default='./',
+                help=
+                "Destination path to the directory where the embryo should be generated."
+            ),
+            dict(
+                flags=('-n', '--name'),
+                type=str,
+                default='',
+                help="The name of the project you're creating."
+            ),
+            dict(
+                flags=('-c', '--context'),
+                help="Path to a context .json or .yml file.",
+            )
+        ]
+    )
+]
 
 def main():
     """
     Main
     """
-    parser = build_parser()
-    args = Arguments.parse(parser)
-    if args.action == 'create':
-        create = EmbryoGenerator.from_args(args)
+    prog = Prog(prog=PROG, subparsers=SUBPARSERS)
+    if prog.args.action == 'create':
+        create = EmbryoGenerator.from_args(prog.args)
     else:
-        parser.print_usage()
-        print(built_ins())
+        prog.print_usage()
 
 
 if __name__ == "__main__":

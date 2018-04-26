@@ -9,7 +9,7 @@ from pprint import pprint
 from jinja2 import Template
 
 from embryo import Project
-from appyratus.io import Yaml
+from appyratus.types import Yaml
 
 from .hooks import HookManager
 from .exceptions import EmbryoNotFound, TemplateLoadFailed

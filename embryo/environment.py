@@ -1,7 +1,7 @@
 import re
 import jinja2
 
-from .text_transform import TextTransform
+from appyratus.util.text_transform import TextTransform
 
 
 def build_env():
@@ -24,5 +24,6 @@ def build_env():
     env.filters['dash'] = TextTransform.dash
     env.filters['title'] = TextTransform.title
     env.filters['camel'] = TextTransform.camel
+    env.filters['dot'] = TextTransform.dot
 
     return env

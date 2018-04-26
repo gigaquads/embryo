@@ -142,7 +142,7 @@ class Project(object):
                         ctx_obj = ctx_obj[k]
 
                 # render the template to file_path
-                print(file_path)
+                print("Rendering {}".format(file_path))
                 self.render(
                     file_path, tpl_name, ctx_obj, style_config=style_config
                 )

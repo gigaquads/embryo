@@ -7,6 +7,7 @@ from types import ModuleType
 
 from jinja2 import Template
 from yapf.yapflib.yapf_api import FormatCode
+from appyratus.types import Yaml
 
 from .constants import RE_RENDERING_METADATA, STYLE_CONFIG
 from .environment import build_env
@@ -20,7 +21,12 @@ class Project(object):
     the rendering of templates into said files.
     """
 
-    def __init__(self, root: str, tree: str, templates=None):
+    def __init__(
+        self, root: str, tree: str, templates=None, dependencies=None
+    ):
+        """
+        Initialize a project
+        """
 
         self.root = root.rstrip('/')
         self.env = build_env()
@@ -28,6 +34,9 @@ class Project(object):
         # if templates is a module extract its public string attributes
         # into the templates dict expected below.
         self.templates = {}
+
+        # dependencies allow for specific ordering of templates in an embryo
+        self.dependencies = dependencies
 
         if isinstance(templates, ModuleType):
             tmp_templates = {}
@@ -51,7 +60,7 @@ class Project(object):
         # finally, initializes the instance attributes declared above.
         self.tree = self._init_tree(yaml.load(tree))
 
-    def _init_tree(self, tree, parent_path: str='') -> dict:
+    def _init_tree(self, tree, parent_path: str = '') -> dict:
         """
         Initializes `directory_paths`, `file_paths`, and `render_metadata`. It
         returns a dict-based tree structure.
@@ -63,7 +72,6 @@ class Project(object):
             if isinstance(obj, dict):
                 k = list(obj.keys())[0]
                 v = obj[k]
-
                 if isinstance(v, str):
                     # in this case, we have a file name with associated
                     # template rendering metadata we must parse out.
@@ -85,6 +93,7 @@ class Project(object):
             elif obj.endswith('/'):
                 # it'sn empty directory name
                 dir_name = obj
+
                 self.directory_paths.add(join(parent_path, dir_name))
                 result[dir_name] = False
             else:
@@ -107,7 +116,7 @@ class Project(object):
                 result[file_name] = True
         return result
 
-    def build(self, context: dict, style_config: dict=None) -> None:
+    def build(self, context: dict, style_config: dict = None) -> None:
         """
         Args:
             - context: a context dict for use by jinja2 templates.
@@ -116,7 +125,7 @@ class Project(object):
         1. Create the directories and files in the file system.
         2. Render templates into said files.
         """
-        self.touch()  # create the project file structure
+        self.touch()    # create the project file structure
 
         for file_path in self.file_paths:
             meta = self.render_metadata.get(file_path)
@@ -133,8 +142,10 @@ class Project(object):
                         ctx_obj = ctx_obj[k]
 
                 # render the template to file_path
+                print("Rendering {}".format(file_path))
                 self.render(
-                    file_path, tpl_name, ctx_obj, style_config=style_config)
+                    file_path, tpl_name, ctx_obj, style_config=style_config
+                )
 
     def touch(self) -> None:
         """
@@ -144,18 +155,20 @@ class Project(object):
         if not os.path.exists(self.root):
             os.makedirs(self.root)
         for dir_path in self.directory_paths:
-            path = join(self.root, dir_path)
+            path = join(self.root, './{}'.format(dir_path))
             if not os.path.exists(path):
                 os.makedirs(path)
         for file_path in self.file_paths:
-            path = join(self.root, file_path)
+            path = join(self.root, './{}'.format(file_path))
             open(path, 'a').close()
 
-    def render(self,
-               file_path: str,
-               template_name: str,
-               context: dict,
-               style_config: dict=None) -> None:
+    def render(
+        self,
+        file_path: str,
+        template_name: str,
+        context: dict,
+        style_config: dict = None
+    ) -> None:
         """
         Renders a template to a file, provided that the `file_path` provided is
         recognized by this `Project`.
@@ -170,7 +183,8 @@ class Project(object):
 
         if file_path.endswith('.py'):
             formatted_text = FormatCode(
-                rendered_text, style_config=style_config)[0]
+                rendered_text, style_config=style_config
+            )[0]
         else:
             formatted_text = rendered_text
 
@@ -181,8 +195,8 @@ class Project(object):
         Writes a string to a file, provided that the `file_path` provided is
         recognized by this `Project`.
         """
-        file_path = file_path.strip('/')
         assert file_path in self.file_paths
+        file_path = file_path.strip('/')
         path = join(self.root, file_path)
         with open(path, 'w') as f_out:
             f_out.write(text)

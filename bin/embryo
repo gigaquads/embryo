@@ -4,7 +4,7 @@
 
 import argparse
 import sys
-from appyratus.util.argz import Prog
+from appyratus.util.argz import Prog, Arg, Subparser
 
 from embryo.create import EmbryoGenerator
 
@@ -12,50 +12,52 @@ PROG = dict(
     prog="embryo",
     name="Embryo",
     version="0",
-    tagline="Anaconda Beware",
+    tagline="Yo",
 )
 
-SUBPARSERS = [
-    dict(
-        name='create',
-        help='generate new embryo',
-        defaults=dict(action='create'),
-        args=[
-            dict(
-                flags=('embryo', ),
-                type=str,
-                help="The name of the embryo for embryonic generation."
-            ),
-            dict(
-                flags=('-d', '--dest'),
-                type=str,
-                default='./',
-                help=
-                "Destination path to the directory where the embryo should be generated."
-            ),
-            dict(
-                flags=('-n', '--name'),
-                type=str,
-                default='',
-                help="The name of the project you're creating."
-            ),
-            dict(
-                flags=('-c', '--context'),
-                help="Path to a context .json or .yml file.",
-            )
-        ]
+
+class EmbryoCreateSubparser(Subparser):
+    name = 'create'
+    help = 'generate new embryo'
+    defaults = dict(action='create')
+
+    embryo_arg = Arg(
+        flags=('embryo', ),
+        type=str,
+        help="The name of the embryo for embryonic generation."
     )
-]
+    dest_arg = Arg(
+        flags=('-d', '--dest'),
+        type=str,
+        default='./',
+        help=
+        "Destination path to the directory where the embryo should be generated."
+    )
+    name_arg = Arg(
+        flags=('-n', '--name'),
+        type=str,
+        default='',
+        help="The name of the project you're creating."
+    )
+    context_arg = Arg(
+        flags=('-c', '--context'),
+        help="Path to a context .json or .yml file.",
+    )
+
+
+class EmbryoProg(Prog):
+    create_subparser = EmbryoCreateSubparser()
+
+    def create(self):
+        return EmbryoGenerator.from_args(self.args)
+
 
 def main():
     """
     Main
     """
-    prog = Prog(prog=PROG, subparsers=SUBPARSERS)
-    if prog.args.action == 'create':
-        create = EmbryoGenerator.from_args(prog.args)
-    else:
-        prog.print_usage()
+    prog = EmbryoProg(data=PROG)
+    prog.run()
 
 
 if __name__ == "__main__":

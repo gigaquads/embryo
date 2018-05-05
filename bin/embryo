@@ -2,9 +2,7 @@
 # encoding=utf8
 # vim: set filetype=python
 
-import argparse
-import sys
-from appyratus.util.argz import Prog, Arg, Subparser
+from appyratus.util.argz import Prog, Subparser, Arg
 
 from embryo.create import EmbryoGenerator
 

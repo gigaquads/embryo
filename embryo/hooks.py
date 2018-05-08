@@ -10,4 +10,10 @@ class HookManager(object):
 class PreCreateHook(object):
     @classmethod
     def from_schema(cls, schema: Schema, context):
-        return schema().load(data=context).data
+        """
+        Using a schema, run context through it and output the resulting data
+        structure.
+        """
+        load_data = schema().load(data=context).data
+        dump_data = schema().dump(data=load_data).data
+        return dump_data

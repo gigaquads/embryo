@@ -85,7 +85,7 @@ class EmbryoGenerator(object):
             root=(root or './'),
             tree=tree,
             templates=templates,
-            deps=deps
+            dependencies=deps
         )
 
         project.build(context)

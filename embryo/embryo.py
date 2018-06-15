@@ -31,7 +31,7 @@ class Embryo(object):
     def post_create(self, project: Project, context: Dict) -> None:
         """
         Post_create is called upon the successful creation of the Project
-        object. Any side-effects following the creation of he embryo in the
+        object. Any side-effects following the creation of the embryo in the
         filesystem can be performed here. This method should be overriden.
         """
 

@@ -49,19 +49,11 @@ class EmbryoGenerator(object):
         embryo_path = self._resolve_embryo_path(name)  # <- sets self.embryo_path
         hooks = self._load_hooks()  # XXX: deprecated
         embryo = self._load_embryo_object(name)
-        dependencies = self._load_dependencies()
+        deps = self._load_deps()
         context = self._load_context(name, hooks, embryo, context)
         tree = self._load_tree_yaml(name, context)
         templates = self._load_templates(name, context)
-        project = self._build_project(context, dest, tree, templates, dependencies)
-
-        if hooks.post_create:  # XXX: deprecated
-            self.log('(DEPRECATED) Running post_create hook...')
-            hooks.post_create(project, context)
-
-        if embryo:
-            self.log('Running Embryo.post_create hook...')
-            embryo.apply_post_create(project, context)
+        project = self._build_project(context, dest, tree, templates, hooks, embryo, deps)
 
     def _resolve_embryo_path(self, name):
         if inspect.ismodule(name):
@@ -84,7 +76,7 @@ class EmbryoGenerator(object):
 
         return self.embryo_path
 
-    def _build_project(self, context, root, tree, templates, dependencies):
+    def _build_project(self, context, root, tree, templates, hooks, embryo, deps):
         self.log('Creating embryo...')
         self.log('Context:')
         self.log(json.dumps(context, indent=2, sort_keys=True))
@@ -93,10 +85,19 @@ class EmbryoGenerator(object):
             root=(root or './'),
             tree=tree,
             templates=templates,
-            dependencies=dependencies
+            deps=deps
         )
 
         project.build(context)
+
+        if hooks.post_create:  # XXX: deprecated
+            self.log('(DEPRECATED) Running post_create hook...')
+            hooks.post_create(project, context)
+
+        if embryo:
+            self.log('Running Embryo.post_create hook...')
+            embryo.apply_post_create(project, context)
+
         return project
 
     def _load_templates(self, embryo: str, context: dict = None):
@@ -122,7 +123,7 @@ class EmbryoGenerator(object):
 
         return templates
 
-    def _load_dependencies(self):
+    def _load_deps(self):
         file_path = os.path.join(self.embryo_path, 'deps.yml')
         data = Yaml.from_file(file_path)
         return data

@@ -1,3 +1,5 @@
+from typing import Dict
+
 from appyratus.validation import Schema
 
 from .project import Project
@@ -23,5 +25,5 @@ class Embryo(object):
         return context
 
     def apply_post_create(self, project: Project, context: Dict) -> None:
-        embryo.apply_post_create(project, context)
+        embryo.post_create(project, context)
 

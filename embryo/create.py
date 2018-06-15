@@ -5,7 +5,8 @@ import traceback
 import inspect
 import importlib
 import argparse
-from pprint import pprint
+import json
+
 from jinja2 import Template
 
 from embryo import Project
@@ -17,6 +18,14 @@ from .environment import build_env
 
 
 class EmbryoGenerator(object):
+    """
+    Evaluates and generates an embryo project.
+    """
+
+    @classmethod
+    def log(fstr, *args, **kwargs):
+        print('>>> ' + fstr.format(*args, **kwargs))
+
     @classmethod
     def from_args(cls, args):
         context = {
@@ -54,35 +63,43 @@ class EmbryoGenerator(object):
 
         sys.path.append(self.embryo_path)
 
+        embryo = self.load_embryo_object(name)
         context = self.load_context(name, context)
+
+        # XXX: hooks is deprecated
         hooks = self.load_hooks()
 
+        # XXX: hooks is deprecated
         if hooks.pre_create:
-            print('>>> Running pre_create hook...')
+            self.log('Running pre_create hook...')
             hooks.pre_create(context)
+
+        if embryo:
+            context = embryo.apply_pre_create(context)
 
         tree = self.load_tree_yaml(name, context)
         templates = self.load_templates(name, context)
         dependencies = self.load_dependencies()
 
-        print('>>> Creating embryo...')
-        print('-' * 80)
-        print('>>> Context:')
+        self.log('Creating embryo...')
+        self.log('Context:')
+        print(json.dumps(context, indent=2, sort_keys=True))
 
-        pprint(context, indent=2)
-
-        root = dest or './'
         project = Project(
-            root=root,
+            root=(root or './'),
             tree=tree,
             templates=templates,
             dependencies=dependencies
         )
         project.build(context)
 
+        # XXX: hooks is deprecated
         if hooks.post_create:
-            print('>>> Running post_create hook...')
+            self.log('Running post_create hook...')
             hooks.post_create(project, context)
+
+        if embryo:
+            embryo.apply_post_create(project, context)
 
     def load_templates(self, embryo: str, context: dict = None):
         templates_dir = os.path.join(self.embryo_path, 'templates')
@@ -138,6 +155,16 @@ class EmbryoGenerator(object):
             context.update(data)
 
         return context
+
+    def load_embryo_object(self):
+        embryo = None
+        abs_filepath = os.path.join(self.embryo_path, 'embryo.py')
+        if os.path.isfile(abs_filepath):
+            module = importlib.import_module('hooks')
+            for obj in inspect.getmembers(module, inspect.isclass):
+                if issubclass(obj, Embryo):
+                    embryo = obj()
+        return embryo
 
     def load_hooks(self):
         abs_filepath = os.path.join(self.embryo_path, 'hooks.py')

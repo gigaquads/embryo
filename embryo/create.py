@@ -46,40 +46,14 @@ class EmbryoGenerator(object):
             self.embryo_search_path.extend(path.split(':'))
 
     def create(self, name: str, dest: str = None, context: dict = None):
-        self._resolve_embryo_path(name)  # <- sets self.embryo_path
-
+        embryo_path = self._resolve_embryo_path(name)  # <- sets self.embryo_path
+        hooks = self._load_hooks()  # XXX: deprecated
         embryo = self._load_embryo_object(name)
-        context = self._load_context(name, context)
-        dependencies = self._load_dependencies()
-        hooks = self._load_hooks()  # XXX: hooks is deprecated
-
-        # Run pre_create hook *before* loading tree, and templates
-        # because these things need the transformed context dict.
-        if hooks.pre_create:
-            self.log('(DEPRECATED) Running pre_create hook...')
-            hooks.pre_create(context)
-
-        if embryo:
-            self.log('Running Embryo.pre_create hook...')
-            context = embryo.apply_pre_create(context)
-
-        # load data which depends on context
+        deps = self._load_deps()
+        context = self._load_context(name, hooks, embryo, context)
         tree = self._load_tree_yaml(name, context)
         templates = self._load_templates(name, context)
-
-        self.log('Creating embryo...')
-        self.log('Context:')
-        print(json.dumps(context, indent=2, sort_keys=True))
-
-        project = self._build_project(context, dest, tree, templates, dependencies)
-
-        if hooks.post_create:
-            self.log('(DEPRECATED) Running post_create hook...')
-            hooks.post_create(project, context)
-
-        if embryo:
-            self.log('Running Embryo.post_create hook...')
-            embryo.apply_post_create(project, context)
+        project = self._build_project(context, dest, tree, templates, hooks, embryo, deps)
 
     def _resolve_embryo_path(self, name):
         if inspect.ismodule(name):
@@ -100,14 +74,30 @@ class EmbryoGenerator(object):
         self.embryo_path = os.path.realpath(self.embryo_path)
         sys.path.append(self.embryo_path)
 
-    def _build_project(self, context, root, tree, templates, dependencies):
+        return self.embryo_path
+
+    def _build_project(self, context, root, tree, templates, hooks, embryo, deps):
+        self.log('Creating embryo...')
+        self.log('Context:')
+        self.log(json.dumps(context, indent=2, sort_keys=True))
+
         project = Project(
             root=(root or './'),
             tree=tree,
             templates=templates,
-            dependencies=dependencies
+            deps=deps
         )
+
         project.build(context)
+
+        if hooks.post_create:  # XXX: deprecated
+            self.log('(DEPRECATED) Running post_create hook...')
+            hooks.post_create(project, context)
+
+        if embryo:
+            self.log('Running Embryo.post_create hook...')
+            embryo.apply_post_create(project, context)
+
         return project
 
     def _load_templates(self, embryo: str, context: dict = None):
@@ -133,7 +123,7 @@ class EmbryoGenerator(object):
 
         return templates
 
-    def _load_dependencies(self):
+    def _load_deps(self):
         file_path = os.path.join(self.embryo_path, 'deps.yml')
         data = Yaml.from_file(file_path)
         return data
@@ -145,11 +135,13 @@ class EmbryoGenerator(object):
             tree_yml = self.env.from_string(tree_yml_tpl).render(context)
             return tree_yml
 
-    def _load_context(self, name: str, data: dict = None):
+    def _load_context(self, name: str, hooks, embryo, data: dict = None):
         file_path = '{}/context.yml'.format(self.embryo_path)
         context = Yaml.from_file(file_path)
+
         if not context:
             context = {}
+
         context.update(data)
         #context.update({'embryo_name': name, 'args': data})
 
@@ -162,6 +154,14 @@ class EmbryoGenerator(object):
                 data = Yaml.from_file(context_filepath)
 
             context.update(data)
+
+        if hooks.pre_create:  # XXX: deprecated
+            self.log('(DEPRECATED) Running pre_create hook...')
+            hooks.pre_create(context)
+
+        if embryo:
+            self.log('Running Embryo.pre_create hook...')
+            context = embryo.apply_pre_create(context)
 
         return context
 

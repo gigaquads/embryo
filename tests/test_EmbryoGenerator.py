@@ -20,14 +20,18 @@ class TestEmbryoGenerator(object):
         embryo.apply_pre_create.return_value = loaded_context
 
         generator = MagicMock()
-        generator._build_project.return_value = project
-        generator._load_context.return_value = context
+        generator._build_project = lambda *args: EmbryoGenerator._build_project(generator, *args)
+        generator._load_context = lambda *args: EmbryoGenerator._load_context(generator, *args)
 
         if exists_embryo_object:
             generator._load_embryo_object.return_value = embryo
 
             with patch('embryo.create.json'):
-                EmbryoGenerator.create(generator, name, dest, context)
+                with patch('embryo.create.Project') as Project:
+                    Project.return_value = project
+                    with patch('embryo.create.Yaml') as Yaml:
+                        Yaml.from_file.return_value = {}
+                        EmbryoGenerator.create(generator, name, dest, context)
 
             embryo.apply_pre_create.assert_called_once_with(context)
             embryo.apply_post_create.assert_called_once_with(project, loaded_context)
@@ -35,7 +39,11 @@ class TestEmbryoGenerator(object):
             generator._load_embryo_object.return_value = None
 
             with patch('embryo.create.json'):
-                EmbryoGenerator.create(generator, name, dest, context)
+                with patch('embryo.create.Project') as Project:
+                    Project.return_value = project
+                    with patch('embryo.create.Yaml') as Yaml:
+                        Yaml.from_file.return_value = {}
+                        EmbryoGenerator.create(generator, name, dest, context)
 
             embryo.apply_pre_create.assert_not_called()
             embryo.apply_post_create.assert_not_called()

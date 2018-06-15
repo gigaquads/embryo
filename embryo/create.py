@@ -5,7 +5,8 @@ import traceback
 import inspect
 import importlib
 import argparse
-from pprint import pprint
+import json
+
 from jinja2 import Template
 
 from embryo import Project
@@ -14,9 +15,18 @@ from appyratus.types import Yaml
 from .hooks import HookManager
 from .exceptions import EmbryoNotFound, TemplateLoadFailed
 from .environment import build_env
+from .embryo import Embryo
 
 
 class EmbryoGenerator(object):
+    """
+    Evaluates and generates an embryo project.
+    """
+
+    @classmethod
+    def log(cls, fstr, *args, **kwargs):
+        print('>>> ' + fstr.format(*args, **kwargs))
+
     @classmethod
     def from_args(cls, args):
         context = {
@@ -36,6 +46,42 @@ class EmbryoGenerator(object):
             self.embryo_search_path.extend(path.split(':'))
 
     def create(self, name: str, dest: str = None, context: dict = None):
+        self._resolve_embryo_path(name)  # <- sets self.embryo_path
+
+        embryo = self._load_embryo_object(name)
+        context = self._load_context(name, context)
+        dependencies = self._load_dependencies()
+        hooks = self._load_hooks()  # XXX: hooks is deprecated
+
+        # Run pre_create hook *before* loading tree, and templates
+        # because these things need the transformed context dict.
+        if hooks.pre_create:
+            self.log('(DEPRECATED) Running pre_create hook...')
+            hooks.pre_create(context)
+
+        if embryo:
+            self.log('Running Embryo.pre_create hook...')
+            context = embryo.apply_pre_create(context)
+
+        # load data which depends on context
+        tree = self._load_tree_yaml(name, context)
+        templates = self._load_templates(name, context)
+
+        self.log('Creating embryo...')
+        self.log('Context:')
+        print(json.dumps(context, indent=2, sort_keys=True))
+
+        project = self._build_project(context, dest, tree, templates, dependencies)
+
+        if hooks.post_create:
+            self.log('(DEPRECATED) Running post_create hook...')
+            hooks.post_create(project, context)
+
+        if embryo:
+            self.log('Running Embryo.post_create hook...')
+            embryo.apply_post_create(project, context)
+
+    def _resolve_embryo_path(self, name):
         if inspect.ismodule(name):
             self.embryo_path = name.__path__._path[0]
         elif '/' in name:
@@ -49,42 +95,22 @@ class EmbryoGenerator(object):
 
         if not self.embryo_path:
             raise EmbryoNotFound(name)
-        # ensure the embryo_path is absolute
-        self.embryo_path = os.path.realpath(self.embryo_path)
 
+        # ensure the embryo_path is absolute and add to python path
+        self.embryo_path = os.path.realpath(self.embryo_path)
         sys.path.append(self.embryo_path)
 
-        context = self.load_context(name, context)
-        hooks = self.load_hooks()
-
-        if hooks.pre_create:
-            print('>>> Running pre_create hook...')
-            hooks.pre_create(context)
-
-        tree = self.load_tree_yaml(name, context)
-        templates = self.load_templates(name, context)
-        dependencies = self.load_dependencies()
-
-        print('>>> Creating embryo...')
-        print('-' * 80)
-        print('>>> Context:')
-
-        pprint(context, indent=2)
-
-        root = dest or './'
+    def _build_project(self, context, root, tree, templates, dependencies):
         project = Project(
-            root=root,
+            root=(root or './'),
             tree=tree,
             templates=templates,
             dependencies=dependencies
         )
         project.build(context)
+        return project
 
-        if hooks.post_create:
-            print('>>> Running post_create hook...')
-            hooks.post_create(project, context)
-
-    def load_templates(self, embryo: str, context: dict = None):
+    def _load_templates(self, embryo: str, context: dict = None):
         templates_dir = os.path.join(self.embryo_path, 'templates')
         templates = {}
 
@@ -107,19 +133,19 @@ class EmbryoGenerator(object):
 
         return templates
 
-    def load_dependencies(self):
+    def _load_dependencies(self):
         file_path = os.path.join(self.embryo_path, 'deps.yml')
         data = Yaml.from_file(file_path)
         return data
 
-    def load_tree_yaml(self, embryo: str, context: dict):
+    def _load_tree_yaml(self, embryo: str, context: dict):
         file_path = os.path.join(self.embryo_path, 'tree.yml')
         with open(file_path) as tree_file:
             tree_yml_tpl = tree_file.read()
             tree_yml = self.env.from_string(tree_yml_tpl).render(context)
             return tree_yml
 
-    def load_context(self, name: str, data: dict = None):
+    def _load_context(self, name: str, data: dict = None):
         file_path = '{}/context.yml'.format(self.embryo_path)
         context = Yaml.from_file(file_path)
         if not context:
@@ -139,9 +165,20 @@ class EmbryoGenerator(object):
 
         return context
 
-    def load_hooks(self):
+    def _load_embryo_object(self):
+        embryo = None
+        abs_filepath = os.path.join(self.embryo_path, 'embryo.py')
+        if os.path.isfile(abs_filepath):
+            module = importlib.import_module('embryo')
+            for obj in inspect.getmembers(module, inspect.isclass):
+                if issubclass(obj, Embryo):
+                    embryo = obj()
+        return embryo
+
+    def _load_hooks(self):
         abs_filepath = os.path.join(self.embryo_path, 'hooks.py')
         if os.path.isfile(abs_filepath):
+            self.log('(DEPRECATED) Loading hooks.py')
             module = importlib.import_module('hooks')
             hook_manager = HookManager(
                 pre_create=getattr(module, 'pre_create', None),

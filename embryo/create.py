@@ -45,15 +45,19 @@ class EmbryoGenerator(object):
             path = os.environ['EMBRYO_PATH']
             self.embryo_search_path.extend(path.split(':'))
 
-    def create(self, name: str, dest: str = None, context: dict = None):
-        embryo_path = self._resolve_embryo_path(name)  # <- sets self.embryo_path
-        hooks = self._load_hooks()  # XXX: deprecated
-        embryo = self._load_embryo_object(name)
+    def create(self, name: str, dest: str=None, context: dict=None):
+        embryo_path = self._resolve_embryo_path(
+            name
+        )    # <- sets self.embryo_path
+        hooks = self._load_hooks()    # XXX: deprecated
+        embryo = self._load_embryo_object()
         deps = self._load_deps()
         context = self._load_context(name, hooks, embryo, context)
         tree = self._load_tree_yaml(name, context)
         templates = self._load_templates(name, context)
-        project = self._build_project(context, dest, tree, templates, hooks, embryo, deps)
+        project = self._build_project(
+            context, dest, tree, templates, hooks, embryo, deps
+        )
 
     def _resolve_embryo_path(self, name):
         if inspect.ismodule(name):
@@ -76,10 +80,12 @@ class EmbryoGenerator(object):
 
         return self.embryo_path
 
-    def _build_project(self, context, root, tree, templates, hooks, embryo, deps):
+    def _build_project(
+        self, context, root, tree, templates, hooks, embryo, deps
+    ):
         self.log('Creating embryo...')
         self.log('Context:')
-        self.log(json.dumps(context, indent=2, sort_keys=True))
+        #self.log(json.dumps(context, indent=2, sort_keys=True))
 
         project = Project(
             root=(root or './'),
@@ -90,7 +96,7 @@ class EmbryoGenerator(object):
 
         project.build(context)
 
-        if hooks.post_create:  # XXX: deprecated
+        if hooks.post_create:    # XXX: deprecated
             self.log('(DEPRECATED) Running post_create hook...')
             hooks.post_create(project, context)
 
@@ -100,7 +106,7 @@ class EmbryoGenerator(object):
 
         return project
 
-    def _load_templates(self, embryo: str, context: dict = None):
+    def _load_templates(self, embryo: str, context: dict=None):
         templates_dir = os.path.join(self.embryo_path, 'templates')
         templates = {}
 
@@ -135,7 +141,7 @@ class EmbryoGenerator(object):
             tree_yml = self.env.from_string(tree_yml_tpl).render(context)
             return tree_yml
 
-    def _load_context(self, name: str, hooks, embryo, data: dict = None):
+    def _load_context(self, name: str, hooks, embryo, data: dict=None):
         file_path = '{}/context.yml'.format(self.embryo_path)
         context = Yaml.from_file(file_path)
 
@@ -155,7 +161,7 @@ class EmbryoGenerator(object):
 
             context.update(data)
 
-        if hooks.pre_create:  # XXX: deprecated
+        if hooks.pre_create:    # XXX: deprecated
             self.log('(DEPRECATED) Running pre_create hook...')
             hooks.pre_create(context)
 
@@ -169,10 +175,16 @@ class EmbryoGenerator(object):
         embryo = None
         abs_filepath = os.path.join(self.embryo_path, 'embryo.py')
         if os.path.isfile(abs_filepath):
-            module = importlib.import_module('embryo')
-            for obj in inspect.getmembers(module, inspect.isclass):
-                if issubclass(obj, Embryo):
-                    embryo = obj()
+            spec = importlib.util.spec_from_file_location(
+                'module', abs_filepath
+            )
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            for klass_name, klass in inspect.getmembers(
+                module, inspect.isclass
+            ):
+                if issubclass(klass, Embryo):
+                    embryo = klass()
         return embryo
 
     def _load_hooks(self):

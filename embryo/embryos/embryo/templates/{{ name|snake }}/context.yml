@@ -1,0 +1,7 @@
+---
+{% if fields %}
+{% for field in fields %}
+{{ field['name'] }}: 
+{% endfor %}
+{% endif %}
+...

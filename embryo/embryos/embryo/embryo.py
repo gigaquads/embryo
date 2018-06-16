@@ -7,7 +7,7 @@ class EmbryoEmbryo(Embryo):
     An embryo for generation embryos
     """
 
-    class EmbryoSchema(schema.Schema):
+    class context_schema(schema.Schema):
         """
         Embryo Schema
         """
@@ -17,6 +17,7 @@ class EmbryoEmbryo(Embryo):
         The name of the embryo you want to create
         """
 
-    @classmethod
-    def schema_context(cls):
-        return cls.EmbryoSchema
+        schema_fields = fields.Dict(allow_none=True, default={})
+        """
+        Schema fields to be applied to an embryo
+        """

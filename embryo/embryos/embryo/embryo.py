@@ -17,7 +17,7 @@ class EmbryoEmbryo(Embryo):
         The name of the embryo you want to create
         """
 
-        schema_fields = fields.Dict(allow_none=True, default={})
+        schema_fields = fields.List(nested=fields.Dict())
         """
         Schema fields to be applied to an embryo
         """

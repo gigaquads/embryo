@@ -151,7 +151,7 @@ class EmbryoGenerator(object):
         context.update(data)
         #context.update({'embryo_name': name, 'args': data})
 
-        context_filepath = getattr(data, 'context', None)
+        context_filepath = data.get('context', None)
         if context_filepath:
             if context_filepath.endswith('.json'):
                 with open(context_filepath) as context_file:

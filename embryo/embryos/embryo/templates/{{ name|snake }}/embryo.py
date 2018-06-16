@@ -16,7 +16,7 @@ class {{ name|camel }}Embryo(Embryo):
 
         {{ field['name'] }} = fields.{{ field['type'] }}()
         """
-        {{ field['name'] }}
+        {{ field['name']|title }}
         """
 {% endfor %}
 {% else %}

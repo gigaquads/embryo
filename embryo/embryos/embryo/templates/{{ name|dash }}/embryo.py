@@ -7,7 +7,7 @@ class {{ name|camel }}Embryo(Embryo):
     An embryo for {{ name|title }}
     """
 
-    class context_schema(fields.Schema):
+    class context_schema(schema.Schema):
         """
         The respective {{ name|title }} schema
         """

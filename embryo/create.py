@@ -85,9 +85,12 @@ class EmbryoGenerator(object):
         """
         Return the filepath for the embryo with the given name.
         """
+        name = name.rstrip('/')
         if inspect.ismodule(name):
+            # path to the provided python module
             return name.__path__._path[0]
-        elif '/' in name:
+        elif name[0] == '/':
+            # absolute path to embryo dir
             return name
         else:
             for path in self.embryo_search_path:

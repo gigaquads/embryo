@@ -1,4 +1,4 @@
-from appyratus.validation import schema, fields
+from appyratus.validation import Schema, fields
 from embryo.embryo import Embryo
 
 
@@ -7,7 +7,7 @@ class EmbryoEmbryo(Embryo):
     An embryo for generation embryos
     """
 
-    class context_schema(schema.Schema):
+    class context_schema(Schema):
         """
         Embryo Schema
         """

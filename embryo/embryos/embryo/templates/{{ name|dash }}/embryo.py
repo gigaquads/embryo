@@ -1,4 +1,4 @@
-from appyratus.validation import schema, fields 
+from appyratus.validation import Schema, fields 
 from embryo.embryo import Embryo
 
 
@@ -7,7 +7,7 @@ class {{ name|camel }}Embryo(Embryo):
     An embryo for {{ name|title }}
     """
 
-    class context_schema(schema.Schema):
+    class context_schema(Schema):
         """
         The respective {{ name|title }} schema
         """

@@ -1,6 +1,5 @@
 ---
 - {{ name|snake }}/:
-  - __init__.py
   - context.yml
   - embryo.py
   - templates/:

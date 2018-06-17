@@ -56,6 +56,7 @@ class Project(object):
         self.file_paths = set()
         self.directory_paths = set()
         self.render_metadata = {}
+        self.nested_embryos = []
 
         # finally, initializes the instance attributes declared above.
         self.tree = self._init_tree(yaml.load(tree))
@@ -66,34 +67,44 @@ class Project(object):
         returns a dict-based tree structure.
         """
         result = {}
+
         if not tree:
             return result
+
         for obj in tree:
             if isinstance(obj, dict):
                 k = list(obj.keys())[0]
                 v = obj[k]
                 if isinstance(v, str):
-                    # in this case, we have a file name with associated
-                    # template rendering metadata we must parse out.
-                    file_name = k
+                    # in this case, we have a file name or nested embryo with
+                    # associated template rendering metadata we must parse out.
                     match = RE_RENDERING_METADATA.match(v)
-                    tpl_name, ctx_key = match.groups()
-                    file_path = join(parent_path, file_name)
-                    self.render_metadata[file_path] = {
-                        'template_name': tpl_name,
-                        'context_path': ctx_key,
-                    }
-                    self.file_paths.add(file_path)
-                    result[k] = True
+                    if k == 'embryo':
+                        # embryo:falcon_app(foo)
+                        nested_embryo_name, ctx_key = match.groups()
+                        self.nested_embryos.append({
+                            'embryo_name': nested_embryo_name,
+                            'context_path': ctx_key,
+                            'dir_path': parent_path,
+                        })
+                    else:
+                        file_name = k
+                        tpl_name, ctx_key = match.groups()
+                        file_path = join(parent_path, file_name)
+                        self.render_metadata[file_path] = {
+                            'template_name': tpl_name,
+                            'context_path': ctx_key,
+                        }
+                        self.file_paths.add(file_path)
+                        result[k] = True
                 else:
                     # call _init_tree on subdirectory
                     path = join(parent_path, k)
                     result[k] = self._init_tree(obj[k], path)
                     self.directory_paths.add(path)
             elif obj.endswith('/'):
-                # it'sn empty directory name
+                # it's an empty directory name
                 dir_name = obj
-
                 self.directory_paths.add(join(parent_path, dir_name))
                 result[dir_name] = False
             else:
@@ -114,6 +125,7 @@ class Project(object):
                         'context_path': None,
                     }
                 result[file_name] = True
+
         return result
 
     def build(self, context: dict, style_config: dict = None) -> None:
@@ -142,10 +154,11 @@ class Project(object):
                         ctx_obj = ctx_obj[k]
 
                 # render the template to file_path
-                print("Rendering {}".format(file_path))
                 self.render(
                     file_path, tpl_name, ctx_obj, style_config=style_config
                 )
+
+        return self.nested_embryos
 
     def touch(self) -> None:
         """

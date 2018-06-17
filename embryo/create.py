@@ -24,8 +24,8 @@ class EmbryoGenerator(object):
     """
 
     @classmethod
-    def log(cls, fstr, *args, **kwargs):
-        print('>>> ' + fstr.format(*args, **kwargs))
+    def log(cls, msg):
+        print('>>> ' + msg)
 
     @classmethod
     def from_args(cls, args):
@@ -45,11 +45,11 @@ class EmbryoGenerator(object):
             path = os.environ['EMBRYO_PATH']
             self.embryo_search_path.extend(path.split(':'))
 
-    def create(self, name: str, dest: str=None, context: dict=None):
-        embryo_path = self._resolve_embryo_path(
-            name
-        )    # <- sets self.embryo_path
-        hooks = self._load_hooks()    # XXX: deprecated
+    def create(
+        self, name: str, dest: str = None, context: dict = None
+    ) -> Project:
+        embryo_path = self._set_embryo_path(name)  # <- sets self.embryo_path
+        hooks = self._load_hooks()  # XXX: deprecated
         embryo = self._load_embryo_object()
         deps = self._load_deps()
         context = self._load_context(name, hooks, embryo, context)
@@ -58,19 +58,50 @@ class EmbryoGenerator(object):
         project = self._build_project(
             context, dest, tree, templates, hooks, embryo, deps
         )
+        nested_projects = self._build_nested_projects(project, context)
+        return [project] + nested_projects
 
-    def _resolve_embryo_path(self, name):
+    def _build_nested_projects(self, project, context):
+        nested_projects = []
+
+        for item in project.nested_embryos:
+            ctx_path = item.get('context_path')
+            ctx_obj = context
+            if ctx_path:
+                for k in ctx_path.split('.'):
+                    ctx_obj = ctx_obj[k]
+
+            project = EmbryoGenerator().create(
+                name=item['embryo_name'],
+                dest=item['dir_path'],
+                context=ctx_obj,
+            )
+
+            nested_projects.append(project)
+
+        return nested_projects
+
+    def _resolve_embryo_path(self, name: str) -> str:
+        """
+        Return the filepath for the embryo with the given name.
+        """
+        name = name.rstrip('/')
         if inspect.ismodule(name):
-            self.embryo_path = name.__path__._path[0]
-        elif '/' in name:
-            self.embryo_path = name
+            # path to the provided python module
+            return name.__path__._path[0]
+        elif name[0] == '/':
+            # absolute path to embryo dir
+            return name
         else:
             for path in self.embryo_search_path:
                 embryo_path = '{}/{}'.format(path.rstrip('/'), name)
                 if os.path.exists(embryo_path):
-                    self.embryo_path = embryo_path
-                    break
+                    return embryo_path
 
+        raise EmbryoNotFound(name)
+
+    def _set_embryo_path(self, name: str) -> str:
+        self.embryo_path = self._resolve_embryo_path(name)
         if not self.embryo_path:
             raise EmbryoNotFound(name)
 
@@ -83,12 +114,15 @@ class EmbryoGenerator(object):
     def _build_project(
         self, context, root, tree, templates, hooks, embryo, deps
     ):
+        root = os.path.abspath(root or './')
+
         self.log('Creating embryo...')
-        self.log('Context:')
-        #self.log(json.dumps(context, indent=2, sort_keys=True))
+        self.log('Embryo: {}'.format(self.embryo_path))
+        self.log('Destination: {}'.format(root))
+        self.log(json.dumps(context, indent=2, sort_keys=True))
 
         project = Project(
-            root=(root or './'),
+            root=root,
             tree=tree,
             templates=templates,
             dependencies=deps
@@ -149,7 +183,6 @@ class EmbryoGenerator(object):
             context = {}
 
         context.update(data)
-        #context.update({'embryo_name': name, 'args': data})
 
         context_filepath = data.get('context', None)
         if context_filepath:

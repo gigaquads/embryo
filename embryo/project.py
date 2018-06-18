@@ -1,9 +1,10 @@
 import os
-from os.path import join
 
 import yaml
 
 from types import ModuleType
+from os.path import join
+from copy import deepcopy
 
 from jinja2 import Template
 from yapf.yapflib.yapf_api import FormatCode
@@ -104,9 +105,9 @@ class Project(object):
                         result[k] = True
                 else:
                     # call _init_tree on subdirectory
-                    path = join(parent_path, k)
-                    result[k] = self._init_tree(obj[k], path)
-                    self.directory_paths.add(path)
+                    child_path = join(parent_path, k)
+                    result[k] = self._init_tree(obj[k], child_path)
+                    self.directory_paths.add(child_path)
             elif obj.endswith('/'):
                 # it's an empty directory name
                 dir_name = obj
@@ -143,6 +144,15 @@ class Project(object):
         2. Render templates into said files.
         """
         self.touch()    # create the project file structure
+
+        # This looks wonky but the truth is, we need to access the context dict
+        # within templates themselves, but jinja doesn't expose the dict by
+        # itself but instead makes the items into top-level attributes within
+        # each template. Therefore, we copy the context into itself so we can
+        # say {{ context|json|safe }}, for example, in order to write the
+        # context JSON to a file within a template.
+        context['context'] = deepcopy(context)
+        context['context'].pop('.embryo', None)
 
         for fpath in self.fpaths:
             meta = self.template_meta.get(fpath)

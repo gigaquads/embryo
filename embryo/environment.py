@@ -1,5 +1,6 @@
 import re
 import jinja2
+import json
 
 from appyratus.util.text_transform import TextTransform
 
@@ -25,5 +26,6 @@ def build_env():
     env.filters['title'] = TextTransform.title
     env.filters['camel'] = TextTransform.camel
     env.filters['dot'] = TextTransform.dot
+    env.filters['json'] = lambda obj: json.dumps(obj, indent=2, sort_keys=True)
 
     return env

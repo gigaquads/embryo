@@ -11,6 +11,7 @@ EMBRYO_FILE_NAMES = {
     'embryo': 'embryo.py',
     'context': 'context.yml',
     'templates': 'templates',
+    'metadata-dir': '.embryo',
 }
 
 STYLE_CONFIG={

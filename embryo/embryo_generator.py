@@ -8,7 +8,7 @@ from typing import Dict, List
 from importlib.util import spec_from_file_location, module_from_spec
 
 from jinja2 import Template
-
+from jinja2.exceptions import TemplateSyntaxError
 from embryo import Project
 from appyratus.types import Yaml
 
@@ -30,11 +30,14 @@ class EmbryoGenerator(object):
         Generate en embryo using command line (CLI) arguments as the initial
         context dict (before the context.yml/json file is merged in, etc.)
         """
-        context = {
+        cli_kwargs = {  # command-line (CLI) kwargs
             k: getattr(args, k)
             for k in dir(args) if not k.startswith('_')
         }
-        return cls().create(name=context['embryo'], context=context)
+        return cls().create(
+            name=cli_kwargs['embryo'],
+            dest=cli_kwargs['dest'],
+            context=cli_kwargs)
 
     @staticmethod
     def log(message):
@@ -72,13 +75,15 @@ class EmbryoGenerator(object):
         generated, and the rest are the nested ones.
         """
 
+        dest = dest or './'
+
         # get an absolute filepath to the embryo directory
         path = self._resolve_embryo_path(name)
 
         # load context and other objects that are not templatized.
         hooks = self._load_hooks(path)
         embryo = self._load_embryo(path)
-        context = self._load_context(path, context)
+        context = self._load_context(path, dest, context)
 
         # run custom pre-create logic before project is built.
         if hooks.pre_create:
@@ -127,7 +132,7 @@ class EmbryoGenerator(object):
             for path in self.embryo_search_path:
                 path = '{}/{}'.format(path.rstrip('/'), name)
                 if os.path.exists(path):
-                    return path 
+                    return path
 
         raise EmbryoNotFound(name)
 
@@ -160,7 +165,11 @@ class EmbryoGenerator(object):
                 rel_fpath = fpath.replace(templates_path, '').lstrip('/')
 
                 # fname_template is the jinja2 Template for the rel_fpath str
-                fname_template = self.jinja_env.from_string(rel_fpath)
+                try:
+                    fname_template = self.jinja_env.from_string(rel_fpath)
+                except TemplateSyntaxError:
+                    self.log('Bad file path template: "{}"'.format(fpath))
+                    raise
 
                 # finally rendered_rel_fpath is the rendered relative path
                 rendered_rel_fpath = fname_template.render(context)
@@ -185,7 +194,12 @@ class EmbryoGenerator(object):
             tree_yml = self.jinja_env.from_string(tree_yml_tpl).render(context)
             return yaml.load(tree_yml)
 
-    def _load_context(self, path: str, cli_context: Dict = None) -> Dict:
+    def _load_context(
+        self,
+        path: str,
+        dest: str,
+        cli_kwargs: Dict = None
+    ) -> Dict:
         """
         Context can come from three places and is merged into a computed dict
         in the following order:
@@ -193,26 +207,36 @@ class EmbryoGenerator(object):
             1. Data in the embryo's static context.json/yml file.
             2. Variables provided on the commandline interface, like --foo 1.
             3. Data provided from a file, named in the --context CLI arg.
+            4. Load data stored in the dest directory under the .embryo dir.
         """
-        fpath = self._build_filepath(path, 'context') 
+        fpath = self._build_filepath(path, 'context')
         context = Yaml.from_file(fpath) or {}
-
-        # first, merge all context variables declared directly on the CLI into
-        # the existing context dict. For example "--foo 1" will create a foo: 1
-        # entry in the dict.
-        context.update(cli_context)
 
         # if a --context PATH_TO_JSON_FILE was provided on the CLI then try to
         # load that file and merge it into the existing context dict.
-        context_filepath = cli_context.get('context', None)
-        if context_filepath:
-            if context_filepath.endswith('.json'):
+        cli_context_value = cli_kwargs.get('context', None)
+        if cli_context_value:
+            if cli_context_value.endswith('.json'):
                 with open(context_filepath) as context_file:
-                    more_context = json.load(context_file)
-            elif context_filepath.endswith('.yml'):
-                more_context = Yaml.from_file(context_filepath)
+                    cli_context = json.load(context_file)
+            elif cli_context_value.endswith('.yml'):
+                cli_context = Yaml.from_file(context_filepath)
+            else:
+                # assume it's a JSON object string
+                cli_context = json.loads(cli_context_value)
 
-            context.update(more_context)
+            context.update(cli_context)
+
+        context['context'] = context.copy()
+        context['context']['name'] = cli_kwargs['name']
+        context['embryo'] = {
+            'name': os.path.basename(path),
+            'path': path,
+            'destination': os.path.abspath(cli_kwargs.pop('dest')),
+            'action': cli_kwargs['action'],
+        }
+
+        #import ipdb; ipdb.set_trace()
 
         return context
 

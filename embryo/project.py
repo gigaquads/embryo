@@ -1,9 +1,10 @@
 import os
-from os.path import join
 
+import json
 import yaml
 
 from types import ModuleType
+from os.path import join
 
 from jinja2 import Template
 from yapf.yapflib.yapf_api import FormatCode
@@ -30,6 +31,7 @@ class Project(object):
         self.directory_paths = set()
         self.template_meta = {}
         self.nested_embryos = []
+        self.filesystem_metadata = {}
         self.templates = self._init_templates(templates)
         self.tree = self._init_tree(tree)
 
@@ -76,6 +78,24 @@ class Project(object):
         if not tree:
             return result
 
+        def set_filesystem_metadata(path):
+            fpath = os.path.join(path, '.embryo/context.json')
+            context = {}
+            if os.path.isfile(fpath):
+                with open(fpath) as fin:
+                    json_str = fin.read()
+                    if json_str:
+                        context = json.loads(json_str)
+
+            if context is None:
+                return
+
+            abspath = os.path.abspath(path)
+            self.filesystem_metadata['/' + path] = {
+                'context': context,
+                'path': abspath,
+            }
+
         for obj in tree:
             if isinstance(obj, dict):
                 k = list(obj.keys())[0]
@@ -104,9 +124,10 @@ class Project(object):
                         result[k] = True
                 else:
                     # call _init_tree on subdirectory
-                    path = join(parent_path, k)
-                    result[k] = self._init_tree(obj[k], path)
-                    self.directory_paths.add(path)
+                    child_path = join(parent_path, k)
+                    result[k] = self._init_tree(obj[k], child_path)
+                    self.directory_paths.add(child_path)
+                    set_filesystem_metadata(parent_path)
             elif obj.endswith('/'):
                 # it's an empty directory name
                 dir_name = obj
@@ -144,6 +165,14 @@ class Project(object):
         """
         self.touch()    # create the project file structure
 
+        # This looks wonky but the truth is, we need to access the context dict
+        # within templates themselves, but jinja doesn't expose the dict by
+        # itself but instead makes the items into top-level attributes within
+        # each template. Therefore, we copy the context into itself so we can
+        # say {{ context|json|safe }}, for example, in order to write the
+        # context JSON to a string inside a template.
+        context['fs'] = self.filesystem_metadata
+
         for fpath in self.fpaths:
             meta = self.template_meta.get(fpath)
 
@@ -158,11 +187,15 @@ class Project(object):
                     for k in ctx_path.split('.'):
                         ctx_obj = ctx_obj[k]
 
+                assert fpath in self.fpaths
+
                 # render the template to fpath
+                abs_fpath = os.path.join(self.root, fpath.lstrip('/'))
                 self.render(
-                    fpath, tpl_name, ctx_obj, style_config=style_config
+                    abs_fpath, tpl_name, ctx_obj, style_config=style_config
                 )
 
+        del context['context']
         return self.nested_embryos
 
     def touch(self) -> None:
@@ -182,13 +215,13 @@ class Project(object):
 
     def render(
         self,
-        fpath: str,
+        abs_fpath: str,
         template_name: str,
         context: dict,
         style_config: dict = None
     ) -> None:
         """
-        Renders a template to a file, provided that the `fpath` provided is
+        Renders a template to a file, provided that the `abs_fpath` provided is
         recognized by this `Project`.
         """
         try:
@@ -196,27 +229,36 @@ class Project(object):
         except KeyError:
             raise TemplateNotFound(template_name)
 
-        style_config = style_config or STYLE_CONFIG
-        rendered_text = template.render(context).strip()
+        try:
+            print('>>> Rendering {}'.format(abs_fpath))
+            rendered_text = template.render(context).strip()
+        except:
+            # TODO: create and use log util function
+            print('>>> Problem rendering {}'.format(abs_fpath))
+            raise
 
-        if fpath.endswith('.py'):
-            formatted_text = FormatCode(
-                rendered_text, style_config=style_config
-            )[0]
+        if abs_fpath.endswith('.py'):
+            style_config = style_config or STYLE_CONFIG
+            try:
+                formatted_text = FormatCode(
+                    rendered_text, style_config=style_config
+                )[0]
+            except:
+                # TODO: create and use log util function
+                print('>>> Problem formatting {}'.format(abs_fpath))
+                raise
         else:
             formatted_text = rendered_text
 
-        self.write(fpath, formatted_text)
+        self.write(abs_fpath, formatted_text)
 
     def write(self, fpath: str, text: str) -> None:
         """
         Writes a string to a file, provided that the `fpath` provided is
         recognized by this `Project`.
         """
-        assert fpath in self.fpaths
-        fpath = fpath.strip('/')
-        path = join(self.root, fpath)
-        with open(path, 'w') as f_out:
+        abs_fpath = join(self.root, fpath.strip())
+        with open(abs_fpath, 'w') as f_out:
             f_out.write(text)
 
     def has_directory(self, path) -> bool:

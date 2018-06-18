@@ -4,13 +4,14 @@
 
 from appyratus.util.argz import Prog, Subparser, Arg
 
-from embryo.create import EmbryoGenerator
+from embryo import EmbryoGenerator
+
 
 PROG = dict(
     prog="embryo",
     name="Embryo",
     version="0",
-    tagline="Yo",
+    tagline="wat",
 )
 
 

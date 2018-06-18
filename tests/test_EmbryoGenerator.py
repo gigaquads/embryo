@@ -24,7 +24,7 @@ class TestEmbryoGenerator(object):
         generator._load_context = lambda *args: EmbryoGenerator._load_context(generator, *args)
 
         if exists_embryo_object:
-            generator._load_embryo_object.return_value = embryo
+            generator._load_embryo.return_value = embryo
 
             with patch('embryo.create.json'):
                 with patch('embryo.create.Project') as Project:
@@ -36,7 +36,7 @@ class TestEmbryoGenerator(object):
             embryo.apply_pre_create.assert_called_once_with(context)
             embryo.apply_post_create.assert_called_once_with(project, loaded_context)
         else:
-            generator._load_embryo_object.return_value = None
+            generator._load_embryo.return_value = None
 
             with patch('embryo.create.json'):
                 with patch('embryo.create.Project') as Project:

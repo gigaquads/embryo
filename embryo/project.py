@@ -21,23 +21,26 @@ class Project(object):
     the rendering of templates into said files.
     """
 
-    def __init__(
-        self, root: str, tree: str, templates=None, dependencies=None
-    ):
+    def __init__(self, root: str, tree: str, templates=None):
         """
         Initialize a project
         """
-
         self.root = root.rstrip('/')
-        self.env = build_env()
+        self.fpaths = set()
+        self.directory_paths = set()
+        self.template_meta = {}
+        self.nested_embryos = []
+        self.templates = self._init_templates(templates)
+        self.tree = self._init_tree(tree)
 
+    def _init_templates(self, templates):
+        """
+        Load template files from a templates module, ignoring any "private"
+        object starting with an _. Return a dict, mapping each Template
+        object's name to the object.
+        """
         # if templates is a module extract its public string attributes
         # into the templates dict expected below.
-        self.templates = {}
-
-        # dependencies allow for specific ordering of templates in an embryo
-        self.dependencies = dependencies
-
         if isinstance(templates, ModuleType):
             tmp_templates = {}
             for k in dir(templates):
@@ -46,26 +49,28 @@ class Project(object):
                     tmp_templates[k] = v
             templates = tmp_templates
 
-        # initialize jinja2 templates
-        for k, v in (templates or {}).items():
-            if isinstance(v, Template):
-                self.templates[k] = v
-            else:
-                self.templates[k] = self.env.from_string(v)
+        # load the jinja2 templates contained in the module, either in the form
+        # of Template objects or strings.
+        loaded_templates = {}
+        jinja_env = build_env()
 
-        self.file_paths = set()
-        self.directory_paths = set()
-        self.render_metadata = {}
-        self.nested_embryos = []
+        if templates:
+            for k, v in templates.items():
+                if isinstance(v, Template):
+                    loaded_templates[k] = v
+                elif isinstance(v, str):
+                    loaded_templates[k] = jinja_env.from_string(v)
 
-        # finally, initializes the instance attributes declared above.
-        self.tree = self._init_tree(yaml.load(tree))
+        return loaded_templates
 
     def _init_tree(self, tree, parent_path: str = '') -> dict:
         """
-        Initializes `directory_paths`, `file_paths`, and `render_metadata`. It
+        Initializes `directory_paths`, `fpaths`, and `template_meta`. It
         returns a dict-based tree structure.
         """
+        if isinstance(tree, str):
+            tree = yaml.load(tree)
+
         result = {}
 
         if not tree:
@@ -88,14 +93,14 @@ class Project(object):
                             'dir_path': parent_path,
                         })
                     else:
-                        file_name = k
+                        fname = k
                         tpl_name, ctx_key = match.groups()
-                        file_path = join(parent_path, file_name)
-                        self.render_metadata[file_path] = {
+                        fpath = join(parent_path, fname)
+                        self.template_meta[fpath] = {
                             'template_name': tpl_name,
                             'context_path': ctx_key,
                         }
-                        self.file_paths.add(file_path)
+                        self.fpaths.add(fpath)
                         result[k] = True
                 else:
                     # call _init_tree on subdirectory
@@ -109,22 +114,22 @@ class Project(object):
                 result[dir_name] = False
             else:
                 # it's a plain ol' file name
-                file_name = obj
-                file_path = join(parent_path, file_name)
-                self.file_paths.add(file_path)
-                if file_path in self.templates:
+                fname = obj
+                fpath = join(parent_path, fname)
+                self.fpaths.add(fpath)
+                if fpath in self.templates:
                     # attempt to resolve the full path
-                    self.render_metadata[file_path] = {
-                        'template_name': file_path,
+                    self.template_meta[fpath] = {
+                        'template_name': fpath,
                         'context_path': None,
                     }
-                elif file_name in self.templates:
+                elif fname in self.templates:
                     # top-level resolution of file name only
-                    self.render_metadata[file_path] = {
-                        'template_name': file_name,
+                    self.template_meta[fpath] = {
+                        'template_name': fname,
                         'context_path': None,
                     }
-                result[file_name] = True
+                result[fname] = True
 
         return result
 
@@ -139,8 +144,8 @@ class Project(object):
         """
         self.touch()    # create the project file structure
 
-        for file_path in self.file_paths:
-            meta = self.render_metadata.get(file_path)
+        for fpath in self.fpaths:
+            meta = self.template_meta.get(fpath)
 
             if meta is not None:
                 tpl_name = meta['template_name']
@@ -153,9 +158,9 @@ class Project(object):
                     for k in ctx_path.split('.'):
                         ctx_obj = ctx_obj[k]
 
-                # render the template to file_path
+                # render the template to fpath
                 self.render(
-                    file_path, tpl_name, ctx_obj, style_config=style_config
+                    fpath, tpl_name, ctx_obj, style_config=style_config
                 )
 
         return self.nested_embryos
@@ -171,46 +176,46 @@ class Project(object):
             path = join(self.root, './{}'.format(dir_path))
             if not os.path.exists(path):
                 os.makedirs(path)
-        for file_path in self.file_paths:
-            path = join(self.root, './{}'.format(file_path))
+        for fpath in self.fpaths:
+            path = join(self.root, './{}'.format(fpath))
             open(path, 'a').close()
 
     def render(
         self,
-        file_path: str,
+        fpath: str,
         template_name: str,
         context: dict,
         style_config: dict = None
     ) -> None:
         """
-        Renders a template to a file, provided that the `file_path` provided is
+        Renders a template to a file, provided that the `fpath` provided is
         recognized by this `Project`.
         """
         try:
             template = self.templates[template_name]
-        except KeyError as exc:
+        except KeyError:
             raise TemplateNotFound(template_name)
 
         style_config = style_config or STYLE_CONFIG
         rendered_text = template.render(context).strip()
 
-        if file_path.endswith('.py'):
+        if fpath.endswith('.py'):
             formatted_text = FormatCode(
                 rendered_text, style_config=style_config
             )[0]
         else:
             formatted_text = rendered_text
 
-        self.write(file_path, formatted_text)
+        self.write(fpath, formatted_text)
 
-    def write(self, file_path: str, text: str) -> None:
+    def write(self, fpath: str, text: str) -> None:
         """
-        Writes a string to a file, provided that the `file_path` provided is
+        Writes a string to a file, provided that the `fpath` provided is
         recognized by this `Project`.
         """
-        assert file_path in self.file_paths
-        file_path = file_path.strip('/')
-        path = join(self.root, file_path)
+        assert fpath in self.fpaths
+        fpath = fpath.strip('/')
+        path = join(self.root, fpath)
         with open(path, 'w') as f_out:
             f_out.write(text)
 
@@ -228,4 +233,4 @@ class Project(object):
         recognized by this `Project`.
         """
         key = '/' + path.strip('/')
-        return self.file_paths.get(key)
+        return self.fpaths.get(key)

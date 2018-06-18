@@ -3,6 +3,16 @@ import re
 
 RE_RENDERING_METADATA = re.compile(r'^(\w+)\s*\(\s*([\w\.]*)\s*\)$')
 
+EMBRYO_PATH_ENV_VAR_NAME = 'EMBRYO_PATH'
+
+EMBRYO_FILE_NAMES = {
+    'hooks': 'hooks.py',
+    'tree': 'tree.yml',
+    'embryo': 'embryo.py',
+    'context': 'context.yml',
+    'templates': 'templates',
+}
+
 STYLE_CONFIG={
     'BASED_ON_STYLE': 'pep8',
     'COLUMN_LIMIT': 80,
@@ -16,4 +26,4 @@ STYLE_CONFIG={
     'DEDENT_CLOSING_BRACKETS': True,
     'CONTINUATION_INDENT_WIDTH': 8,
     'INDENT_WIDTH': 4,
-    }
+}

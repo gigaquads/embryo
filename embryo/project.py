@@ -152,7 +152,7 @@ class Project(object):
         # say {{ context|json|safe }}, for example, in order to write the
         # context JSON to a string inside a template.
         context['context'] = deepcopy(context)
-        context['context'].pop('.embryo', None)
+        context['context'].pop('destination', None)
 
         for fpath in self.fpaths:
             meta = self.template_meta.get(fpath)

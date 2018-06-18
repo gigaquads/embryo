@@ -226,13 +226,13 @@ class EmbryoGenerator(object):
 
         # load context stored in .embryo data if exists in
         # the embryo destination path.
-        context['.embryo'] = {
-            'context': self._load_dotembryo_context(dest)
+        context['destination'] = {
+            'context': self._load_destination_context(dest)
         }
 
         return context
 
-    def _load_dotembryo_context(self, dest):
+    def _load_destination_context(self, dest):
         """
         Load in any context.json data stored in the destination directory,
         inside .embryo hidden directory.
@@ -240,6 +240,7 @@ class EmbryoGenerator(object):
         data = {}
         metadata_path = self._build_filepath(dest, 'metadata-dir')
 
+        import ipdb; ipdb.set_trace()
         if os.path.isdir(metadata_path):
             context_fpath = os.path.join(metadata_path, 'context.json')
             if os.path.isfile(context_fpath):

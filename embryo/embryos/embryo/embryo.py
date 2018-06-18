@@ -1,0 +1,23 @@
+from appyratus.validation import Schema, fields
+from embryo.embryo import Embryo
+
+
+class EmbryoEmbryo(Embryo):
+    """
+    An embryo for generation embryos
+    """
+
+    class context_schema(Schema):
+        """
+        Embryo Schema
+        """
+
+        name = fields.Str()
+        """
+        The name of the embryo you want to create
+        """
+
+        schema_fields = fields.List(nested=fields.Dict())
+        """
+        Schema fields to be applied to an embryo
+        """

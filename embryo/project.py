@@ -150,7 +150,7 @@ class Project(object):
         # itself but instead makes the items into top-level attributes within
         # each template. Therefore, we copy the context into itself so we can
         # say {{ context|json|safe }}, for example, in order to write the
-        # context JSON to a file within a template.
+        # context JSON to a string inside a template.
         context['context'] = deepcopy(context)
         context['context'].pop('.embryo', None)
 

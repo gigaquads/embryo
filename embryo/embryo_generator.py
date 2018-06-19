@@ -224,30 +224,13 @@ class EmbryoGenerator(object):
 
             context.update(more_context)
 
-        # load context stored in .embryo data if exists in
-        # the embryo destination path.
-        context['destination'] = {
-            'context': self._load_destination_context(dest)
+        context['state'] = os.path.abspath(context.pop('dest'))
+        context['embryo'] = {
+            'name': os.path.basename(path),
+            'path': path
         }
 
         return context
-
-    def _load_destination_context(self, dest):
-        """
-        Load in any context.json data stored in the destination directory,
-        inside .embryo hidden directory.
-        """
-        data = {}
-        metadata_path = self._build_filepath(dest, 'metadata-dir')
-
-        import ipdb; ipdb.set_trace()
-        if os.path.isdir(metadata_path):
-            context_fpath = os.path.join(metadata_path, 'context.json')
-            if os.path.isfile(context_fpath):
-                with open(context_fpath) as fin:
-                    data = json.load(fin)
-
-        return data
 
     def _load_embryo(self, path):
         """
@@ -301,12 +284,13 @@ class EmbryoGenerator(object):
         self.log('Creating embryo...')
         self.log('Embryo: {}'.format(path))
         self.log('Destination: {}'.format(root))
-        self.log('Context: {}'.format(
-            json.dumps(context, indent=2, sort_keys=True)
-        ))
 
         project = Project(root=root, tree=tree, templates=templates)
         project.build(context)
+
+        self.log('Context: {}'.format(
+            json.dumps(context, indent=2, sort_keys=True)
+        ))
 
         return project
 

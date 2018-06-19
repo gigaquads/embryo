@@ -1,5 +1,6 @@
 import os
 
+import json
 import yaml
 
 from types import ModuleType
@@ -31,6 +32,7 @@ class Project(object):
         self.directory_paths = set()
         self.template_meta = {}
         self.nested_embryos = []
+        self.destination_contexts = {}
         self.templates = self._init_templates(templates)
         self.tree = self._init_tree(tree)
 
@@ -77,6 +79,33 @@ class Project(object):
         if not tree:
             return result
 
+        def load_destination_context(path):
+            fpath = os.path.join(path, '.embryo/context.json')
+            context = {}
+            if os.path.isfile(fpath):
+                with open(fpath) as fin:
+                    json_str = fin.read()
+                    if json_str:
+                        context = json.loads(json_str)
+
+            if context is None:
+                return
+
+            path = '/' + path
+            self.destination_contexts[path] = context
+            return
+
+            if not path:
+                path = '/' + path
+                self.destination_contexts['context'] = context
+            else:
+                ctx = self.destination_contexts
+                for k in path.split('/'):
+                    if k not in ctx:
+                        ctx[k] = {}
+                    ctx = ctx[k]
+                ctx['context'] = context
+
         for obj in tree:
             if isinstance(obj, dict):
                 k = list(obj.keys())[0]
@@ -108,6 +137,7 @@ class Project(object):
                     child_path = join(parent_path, k)
                     result[k] = self._init_tree(obj[k], child_path)
                     self.directory_paths.add(child_path)
+                    load_destination_context(parent_path)
             elif obj.endswith('/'):
                 # it's an empty directory name
                 dir_name = obj
@@ -152,7 +182,7 @@ class Project(object):
         # say {{ context|json|safe }}, for example, in order to write the
         # context JSON to a string inside a template.
         context['context'] = deepcopy(context)
-        context['context'].pop('destination', None)
+        context['contexts'] = self.destination_contexts
 
         for fpath in self.fpaths:
             meta = self.template_meta.get(fpath)
@@ -173,6 +203,7 @@ class Project(object):
                     fpath, tpl_name, ctx_obj, style_config=style_config
                 )
 
+        del context['context']
         return self.nested_embryos
 
     def touch(self) -> None:

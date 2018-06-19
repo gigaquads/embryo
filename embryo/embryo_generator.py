@@ -205,30 +205,31 @@ class EmbryoGenerator(object):
         fpath = self._build_filepath(path, 'context')
         context = Yaml.from_file(fpath) or {}
 
-        # first, merge all context variables declared directly on the CLI into
-        # the existing context dict. For example "--foo 1" will create a foo: 1
-        # entry in the dict.
-        context.update(cli_kwargs)
-
         # if a --context PATH_TO_JSON_FILE was provided on the CLI then try to
         # load that file and merge it into the existing context dict.
-        context_filepath = cli_kwargs.get('context', None)
-        if context_filepath:
-            if context_filepath.endswith('.json'):
+        cli_context_value = cli_kwargs.get('context', None)
+        if cli_context_value:
+            if cli_context_value.endswith('.json'):
                 with open(context_filepath) as context_file:
-                    more_context = json.load(context_file)
-            elif context_filepath.endswith('.yml'):
-                more_context = Yaml.from_file(context_filepath)
+                    cli_context = json.load(context_file)
+            elif cli_context_value.endswith('.yml'):
+                cli_context = Yaml.from_file(context_filepath)
             else:
-                more_context = {}
+                # assume it's a JSON object string
+                cli_context = json.loads(cli_context_value)
 
-            context.update(more_context)
+            context.update(cli_context)
 
-        context['state'] = os.path.abspath(context.pop('dest'))
+        context['context'] = context.copy()
+        context['context']['name'] = cli_kwargs['name']
         context['embryo'] = {
             'name': os.path.basename(path),
-            'path': path
+            'path': path,
+            'destination': os.path.abspath(cli_kwargs.pop('dest')),
+            'action': cli_kwargs['action'],
         }
+
+        import ipdb; ipdb.set_trace()
 
         return context
 

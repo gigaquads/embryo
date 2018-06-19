@@ -32,7 +32,7 @@ class Project(object):
         self.directory_paths = set()
         self.template_meta = {}
         self.nested_embryos = []
-        self.destination_contexts = {}
+        self.filesystem_metadata = {}
         self.templates = self._init_templates(templates)
         self.tree = self._init_tree(tree)
 
@@ -79,7 +79,7 @@ class Project(object):
         if not tree:
             return result
 
-        def load_destination_context(path):
+        def set_filesystem_metadata(path):
             fpath = os.path.join(path, '.embryo/context.json')
             context = {}
             if os.path.isfile(fpath):
@@ -91,20 +91,11 @@ class Project(object):
             if context is None:
                 return
 
-            path = '/' + path
-            self.destination_contexts[path] = context
-            return
-
-            if not path:
-                path = '/' + path
-                self.destination_contexts['context'] = context
-            else:
-                ctx = self.destination_contexts
-                for k in path.split('/'):
-                    if k not in ctx:
-                        ctx[k] = {}
-                    ctx = ctx[k]
-                ctx['context'] = context
+            abspath = os.path.abspath(path)
+            self.filesystem_metadata['/' + path] = {
+                'context': context,
+                'path': abspath,
+            }
 
         for obj in tree:
             if isinstance(obj, dict):
@@ -137,7 +128,7 @@ class Project(object):
                     child_path = join(parent_path, k)
                     result[k] = self._init_tree(obj[k], child_path)
                     self.directory_paths.add(child_path)
-                    load_destination_context(parent_path)
+                    set_filesystem_metadata(parent_path)
             elif obj.endswith('/'):
                 # it's an empty directory name
                 dir_name = obj
@@ -182,7 +173,7 @@ class Project(object):
         # say {{ context|json|safe }}, for example, in order to write the
         # context JSON to a string inside a template.
         context['context'] = deepcopy(context)
-        context['contexts'] = self.destination_contexts
+        context['fs'] = self.filesystem_metadata
 
         for fpath in self.fpaths:
             meta = self.template_meta.get(fpath)

@@ -41,8 +41,9 @@ class Embryo(object):
         """
         schema = self.context_schema()
         if schema and context:
-            context = schema.load(context).data
-            context = schema.dump(context).data
+            schema_context = schema.load(context).data
+            schema_context = schema.dump(schema_context).data
+        context.update(schema_context)
         self.pre_create(context)
         return context
 

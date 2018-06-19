@@ -15,7 +15,7 @@ class {{ name|camel }}Embryo(Embryo):
         
         ## Fields
 {% for field in schema_fields %}
-        * `{{ field['name']|snake }}`: {{ field.get('description', 'TODO') }}
+        - `{{ field['name']|snake }}`: {{ field.get('description', 'TODO') }}
 {% endfor %}
 {% endif %}
         """

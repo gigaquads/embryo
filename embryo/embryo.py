@@ -11,8 +11,8 @@ class Embryo(object):
     the context of running the EmbryoGenerator.
     """
 
-    @classmethod
-    def context_schema(cls) -> Schema:
+    @staticmethod
+    def context_schema() -> Schema:
         """
         Returns an instance of a Schema class, which is applied to the context
         dict, using schema.load(context). A return value of None skips this
@@ -42,6 +42,7 @@ class Embryo(object):
         schema = self.context_schema()
         if schema and context:
             context = schema.load(context).data
+            context = schema.dump(context).data
         self.pre_create(context)
         return context
 

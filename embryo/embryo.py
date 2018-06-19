@@ -39,13 +39,13 @@ class Embryo(object):
         """
         This method should be called only by EmbryoGenerator objects.
         """
+        schema_context = {}
         schema = self.context_schema()
         if schema and context:
-            schema_context = schema.load(context).data
-            schema_context = schema.dump(schema_context).data
-        context.update(schema_context)
+            schema_context = schema.load(context, strict=True).data
         self.pre_create(context)
-        return context
+        dumped_context = schema.dump(schema_context).data
+        return dumped_context
 
     def apply_post_create(self, project: Project, context: Dict) -> None:
         """

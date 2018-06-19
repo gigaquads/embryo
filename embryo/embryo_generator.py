@@ -85,18 +85,19 @@ class EmbryoGenerator(object):
             hooks.pre_create(context)
         if embryo:
             self.log('Running Embryo.pre_create hook...')
-            context = embryo.apply_pre_create(context)
+            dumped_context = embryo.apply_pre_create(context)
+
 
         # load the templates, including the tree yaml.
-        templates = self._load_templates(path, context)
-        tree = self._load_tree(path, context)
+        templates = self._load_templates(path, dumped_context)
+        tree = self._load_tree(path, dumped_context)
 
         # finally, build this project first, followed by any nested embryos. We
         # run the post-create logic after all nested projects have been built
         # so that we have known and fixed state at that point
         projects = []
         projects.append(
-            self._build_project(path, context, dest, tree, templates)
+            self._build_project(path, dumped_context, dest, tree, templates)
         )
         projects.extend(
             self._build_nested_projects(path, context, projects[0])

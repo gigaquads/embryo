@@ -1,3 +1,4 @@
 from .project import Project
-from .embryo_generator import EmbryoGenerator
+from .loader import Loader
+from .embryo import Embryo
 from . import constants

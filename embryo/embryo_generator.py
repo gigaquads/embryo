@@ -254,7 +254,7 @@ class EmbryoGenerator(object):
 
             # create an instance of the first Embryo subclass found
             for _, klass in inspect.getmembers(module, inspect.isclass):
-                if issubclass(klass, Embryo):
+                if issubclass(klass, Embryo) and klass is not Embryo:
                     embryo = klass()
                     break
 
@@ -278,13 +278,12 @@ class EmbryoGenerator(object):
         self.log('Creating embryo...')
         self.log('Embryo: {}'.format(path))
         self.log('Destination: {}'.format(root))
-
-        project = Project(root=root, tree=tree, templates=templates)
-        project.build(embryo, context)
-
         self.log('Context: {}'.format(
             json.dumps(context, indent=2, sort_keys=True)
         ))
+
+        project = Project(root=root, tree=tree, templates=templates)
+        project.build(embryo, context)
 
         return project
 

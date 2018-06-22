@@ -15,7 +15,6 @@ from appyratus.types import Yaml
 from .constants import RE_RENDERING_METADATA, STYLE_CONFIG
 from .environment import build_env
 from .exceptions import TemplateNotFound
-from .utils import say
 
 
 class Project(object):
@@ -90,14 +89,8 @@ class Project(object):
                     if json_str:
                         context = json.loads(json_str)
 
-            if context is None:
-                return
-
-            abspath = os.path.abspath(path)
-            self.fs['/' + path] = {
-                'context': context,
-                'path': abspath,
-            }
+            if context is not None:
+                self.fs['/' + path] = context
 
         for obj in tree:
             if isinstance(obj, dict):
@@ -174,7 +167,7 @@ class Project(object):
         """
         self.touch()    # create the project file structure
 
-        say('Running Embryo.on_create hook...')
+        print('>>> Running Embryo.on_create hook...')
         embryo.apply_on_create(self, context, self.fs)
 
         context.setdefault('context', deepcopy(context))

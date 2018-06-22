@@ -3,6 +3,7 @@ import os
 import json
 import yaml
 
+from typing import Dict
 from types import ModuleType
 from os.path import join
 from copy import deepcopy
@@ -14,6 +15,7 @@ from appyratus.types import Yaml
 from .constants import RE_RENDERING_METADATA, STYLE_CONFIG
 from .environment import build_env
 from .exceptions import TemplateNotFound
+from .utils import say
 
 
 class Project(object):
@@ -32,7 +34,7 @@ class Project(object):
         self.directory_paths = set()
         self.template_meta = {}
         self.nested_embryos = []
-        self.filesystem_metadata = {}
+        self.fs = {}
         self.templates = self._init_templates(templates)
         self.tree = self._init_tree(tree)
 
@@ -79,7 +81,7 @@ class Project(object):
         if not tree:
             return result
 
-        def set_filesystem_metadata(path):
+        def set_fs(path):
             fpath = os.path.join(path, '.embryo/context.json')
             context = {}
             if os.path.isfile(fpath):
@@ -92,7 +94,7 @@ class Project(object):
                 return
 
             abspath = os.path.abspath(path)
-            self.filesystem_metadata['/' + path] = {
+            self.fs['/' + path] = {
                 'context': context,
                 'path': abspath,
             }
@@ -128,7 +130,7 @@ class Project(object):
                     child_path = join(parent_path, k)
                     result[k] = self._init_tree(obj[k], child_path)
                     self.directory_paths.add(child_path)
-                    set_filesystem_metadata(parent_path)
+                    set_fs(parent_path)
             elif obj.endswith('/'):
                 # it's an empty directory name
                 dir_name = obj
@@ -155,25 +157,28 @@ class Project(object):
 
         return result
 
-    def build(self, context: dict, style_config: dict = None) -> None:
+    def build(
+        self,
+        embryo: 'Embryo',
+        context: Dict,
+        style_config: Dict = None
+    ) -> None:
         """
-        Args:
-            - context: a context dict for use by jinja2 templates.
-            - style_config: yapf style options for code formating>
+        # Args
+        - embryo: the Embryo object
+        - context: a context dict for use by jinja2 templates.
+        - style_config: yapf style options for code formating>
 
         1. Create the directories and files in the file system.
         2. Render templates into said files.
         """
         self.touch()    # create the project file structure
 
-        # This looks wonky but the truth is, we need to access the context dict
-        # within templates themselves, but jinja doesn't expose the dict by
-        # itself but instead makes the items into top-level attributes within
-        # each template. Therefore, we copy the context into itself so we can
-        # say {{ context|json|safe }}, for example, in order to write the
-        # context JSON to a string inside a template.
-        context['context'] = deepcopy(context)
-        context['fs'] = self.filesystem_metadata
+        say('Running Embryo.on_create hook...')
+        embryo.apply_on_create(self, context, self.fs)
+
+        context.setdefault('context', deepcopy(context))
+        context.setdefault('fs', self.fs)
 
         for fpath in self.fpaths:
             meta = self.template_meta.get(fpath)
@@ -189,12 +194,16 @@ class Project(object):
                     for k in ctx_path.split('.'):
                         ctx_obj = ctx_obj[k]
 
+                assert fpath in self.fpaths
+
                 # render the template to fpath
+                abs_fpath = os.path.join(self.root, fpath.lstrip('/'))
                 self.render(
-                    fpath, tpl_name, ctx_obj, style_config=style_config
+                    abs_fpath, tpl_name, ctx_obj, style_config=style_config
                 )
 
         del context['context']
+
         return self.nested_embryos
 
     def touch(self) -> None:
@@ -214,13 +223,13 @@ class Project(object):
 
     def render(
         self,
-        fpath: str,
+        abs_fpath: str,
         template_name: str,
         context: dict,
         style_config: dict = None
     ) -> None:
         """
-        Renders a template to a file, provided that the `fpath` provided is
+        Renders a template to a file, provided that the `abs_fpath` provided is
         recognized by this `Project`.
         """
         try:
@@ -228,27 +237,36 @@ class Project(object):
         except KeyError:
             raise TemplateNotFound(template_name)
 
-        style_config = style_config or STYLE_CONFIG
-        rendered_text = template.render(context).strip()
+        try:
+            print('>>> Rendering {}'.format(abs_fpath))
+            rendered_text = template.render(context).strip()
+        except:
+            # TODO: create and use log util function
+            print('>>> Problem rendering {}'.format(abs_fpath))
+            raise
 
-        if fpath.endswith('.py'):
-            formatted_text = FormatCode(
-                rendered_text, style_config=style_config
-            )[0]
+        if abs_fpath.endswith('.py'):
+            style_config = style_config or STYLE_CONFIG
+            try:
+                formatted_text = FormatCode(
+                    rendered_text, style_config=style_config
+                )[0]
+            except:
+                # TODO: create and use log util function
+                print('>>> Problem formatting {}'.format(abs_fpath))
+                raise
         else:
             formatted_text = rendered_text
 
-        self.write(fpath, formatted_text)
+        self.write(abs_fpath, formatted_text)
 
     def write(self, fpath: str, text: str) -> None:
         """
         Writes a string to a file, provided that the `fpath` provided is
         recognized by this `Project`.
         """
-        assert fpath in self.fpaths
-        fpath = fpath.strip('/')
-        path = join(self.root, fpath)
-        with open(path, 'w') as f_out:
+        abs_fpath = join(self.root, fpath.strip())
+        with open(abs_fpath, 'w') as f_out:
             f_out.write(text)
 
     def has_directory(self, path) -> bool:

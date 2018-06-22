@@ -8,11 +8,10 @@ from typing import Dict, List
 from importlib.util import spec_from_file_location, module_from_spec
 
 from jinja2 import Template
-
+from jinja2.exceptions import TemplateSyntaxError
 from embryo import Project
 from appyratus.types import Yaml
 
-from .hooks import HookManager
 from .exceptions import EmbryoNotFound, TemplateLoadFailed
 from .environment import build_env
 from .embryo import Embryo
@@ -30,11 +29,14 @@ class EmbryoGenerator(object):
         Generate en embryo using command line (CLI) arguments as the initial
         context dict (before the context.yml/json file is merged in, etc.)
         """
-        context = {
+        cli_kwargs = {  # command-line (CLI) kwargs
             k: getattr(args, k)
             for k in dir(args) if not k.startswith('_')
         }
-        return cls().create(name=context['embryo'], context=context)
+        return cls().create(
+            name=cli_kwargs['embryo'],
+            dest=cli_kwargs['dest'],
+            context=cli_kwargs)
 
     @staticmethod
     def log(message):
@@ -78,13 +80,10 @@ class EmbryoGenerator(object):
         path = self._resolve_embryo_path(name)
 
         # load context and other objects that are not templatized.
-        hooks = self._load_hooks(path)
         embryo = self._load_embryo(path)
         context = self._load_context(path, dest, context)
 
         # run custom pre-create logic before project is built.
-        if hooks.pre_create:
-            hooks.pre_create(context)
         if embryo:
             self.log('Running Embryo.pre_create hook...')
             context = embryo.apply_pre_create(context)
@@ -99,18 +98,16 @@ class EmbryoGenerator(object):
         projects = []
 
         projects.append(
-            self._build_project(path, context, dest, tree, templates)
+            self._build_project(embryo, path, context, dest, tree, templates)
         )
         projects.extend(
-            self._build_nested_projects(path, context, projects[0])
+            self._build_nested_projects(embryo, path, context, projects[0])
         )
 
         # run any custom post-create logic that follows project creation
         if embryo:
             self.log('Running Embryo.post_create hook...')
             embryo.apply_post_create(projects[0], context)
-        if hooks.post_create:  # XXX: deprecated
-            hooks.post_create(projects[0], context)
 
         return projects
 
@@ -162,7 +159,11 @@ class EmbryoGenerator(object):
                 rel_fpath = fpath.replace(templates_path, '').lstrip('/')
 
                 # fname_template is the jinja2 Template for the rel_fpath str
-                fname_template = self.jinja_env.from_string(rel_fpath)
+                try:
+                    fname_template = self.jinja_env.from_string(rel_fpath)
+                except TemplateSyntaxError:
+                    self.log('Bad file path template: "{}"'.format(fpath))
+                    raise
 
                 # finally rendered_rel_fpath is the rendered relative path
                 rendered_rel_fpath = fname_template.render(context)
@@ -207,7 +208,7 @@ class EmbryoGenerator(object):
 
         # if a --context PATH_TO_JSON_FILE was provided on the CLI then try to
         # load that file and merge it into the existing context dict.
-        cli_context_value = cli_kwargs.get('context', None)
+        cli_context_value = cli_kwargs.pop('context', None)
         if cli_context_value:
             if cli_context_value.endswith('.json'):
                 with open(context_filepath) as context_file:
@@ -220,16 +221,19 @@ class EmbryoGenerator(object):
 
             context.update(cli_context)
 
-        context['context'] = context.copy()
-        context['context']['name'] = cli_kwargs['name']
-        context['embryo'] = {
-            'name': os.path.basename(path),
+        # we collect params used by Embryo creation into a separate "embryo"
+        # subobject and add it to the context dict with setdefault so as not to
+        # overwrite any user defined variable by the same name, "embryo":
+        context.setdefault('embryo', {
+            'name': cli_kwargs.pop('embryo'),
             'path': path,
             'destination': os.path.abspath(cli_kwargs.pop('dest')),
-            'action': cli_kwargs['action'],
-        }
+            'action': cli_kwargs.pop('action'),
+        })
 
-        import ipdb; ipdb.set_trace()
+        # Note that the remaining CLI kwargs should be custom context variables,
+        # not Embryo creation parameters. We add these vars here.
+        context.update(cli_kwargs)
 
         return context
 
@@ -256,26 +260,15 @@ class EmbryoGenerator(object):
 
         return embryo
 
-    def _load_hooks(self, path):
-        """
-        XXX: Deprecated
-        Loads pre- and post-commit hooks. This was used prior to the invention
-        of the embryo object in _load_embryo.
-        """
-        abs_filepath = self._build_filepath(path, 'hooks')
-        if os.path.isfile(abs_filepath):
-            self.log('(DEPRECATED) Loading hooks.py')
-            module = importlib.import_module('hooks')
-            hook_manager = HookManager(
-                pre_create=getattr(module, 'pre_create', None),
-                post_create=getattr(module, 'post_create', None),
-            )
-        else:
-            hook_manager = HookManager()
-
-        return hook_manager
-
-    def _build_project(self, path, context, root, tree, templates) -> Project:
+    def _build_project(
+        self,
+        embryo, 
+        path,
+        context,
+        root,
+        tree,
+        templates,
+    ) -> Project:
         """
         This takes all the prepared data structures and uses them to create a
         Project and build it. The build project is returned.
@@ -287,7 +280,7 @@ class EmbryoGenerator(object):
         self.log('Destination: {}'.format(root))
 
         project = Project(root=root, tree=tree, templates=templates)
-        project.build(context)
+        project.build(embryo, context)
 
         self.log('Context: {}'.format(
             json.dumps(context, indent=2, sort_keys=True)
@@ -295,7 +288,13 @@ class EmbryoGenerator(object):
 
         return project
 
-    def _build_nested_projects(self, path, context, project) -> List[Project]:
+    def _build_nested_projects(
+        self,
+        embryo,
+        path,
+        context,
+        project
+    ) -> List[Project]:
         """
         All nested embryos declared in the embryo tree are built here,
         recursively. The list of Projects is returned.

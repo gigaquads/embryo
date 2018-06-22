@@ -28,6 +28,12 @@ class Embryo(object):
         This method should be overriden.
         """
 
+    def on_create(self, project: Project, context: Dict, fs: Dict) -> None:
+        """
+        This logic follows the rendering of the tree.yml and templatized file
+        paths. At this point, we have access to stored filesystem context.
+        """
+
     def post_create(self, project: Project, context: Dict) -> None:
         """
         Post_create is called upon the successful creation of the Project
@@ -39,10 +45,32 @@ class Embryo(object):
         """
         This method should be called only by EmbryoGenerator objects.
         """
+        # load/validate context as prepared by the EmbryoGenerator and Project
+        # during the buld process.
         schema = self.context_schema()
         if schema and context:
-            context = schema.load(context).data
+            context = schema.load(context, strict=True).data
+
         self.pre_create(context)
+
+        # we re-load the context because it is possible that it has been
+        # modified in-place by pre_create.
+        if schema and context:
+            # TODO: all we want to do is re-validate here, not reload
+            context = schema.load(context, strict=True).data
+
+        return context
+
+    def apply_on_create(self, project: Project, context: Dict, fs: Dict) -> None:
+        self.on_create(project, context, fs)
+
+        # we re-load the context because it is possible that it has been
+        # modified in-place by pre_create.
+        schema = self.context_schema()
+        if schema and context:
+            # TODO: all we want to do is re-validate, not reload
+            context = schema.load(context, strict=True).data
+
         return context
 
     def apply_post_create(self, project: Project, context: Dict) -> None:

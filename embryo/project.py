@@ -3,12 +3,15 @@ import os
 import json
 import yaml
 
+from typing import Dict
 from types import ModuleType
 from os.path import join
+from copy import deepcopy
 
 from jinja2 import Template
 from yapf.yapflib.yapf_api import FormatCode
 from appyratus.types import Yaml
+from appyratus.time import to_timestamp, utc_now
 
 from .constants import RE_RENDERING_METADATA, STYLE_CONFIG
 from .environment import build_env
@@ -18,23 +21,24 @@ from .utils import say, scream
 
 class Project(object):
     """
-    A `Project` represents the schematics of a new, well, project of some sort
-    in the host file system. It manages the creation of directories, files, and
-    the rendering of templates into said files.
+    A `Project`  is responsible for taking the loaded instructions owned by an
+    `Embryo` object and generating files into the filesystem.
     """
 
-    def __init__(self, root: str, tree: str, templates=None):
+    def __init__(self, embryo: 'Embryo'):
         """
         Initialize a project
         """
-        self.root = root.rstrip('/')
+        self.root = embryo.destination.rstrip('/')
         self.fpaths = set()
         self.directory_paths = set()
         self.template_meta = {}
         self.nested_embryos = []
-        self.filesystem_metadata = {}
-        self.templates = self._init_templates(templates)
-        self.tree = self._init_tree(tree)
+        self.fs = {}
+
+        self.embryo = embryo
+        self.templates = self._init_templates(embryo.templates)
+        self.tree = self._init_tree(embryo.tree)
 
     def _init_templates(self, templates):
         """
@@ -79,23 +83,7 @@ class Project(object):
         if not tree:
             return result
 
-        def set_filesystem_metadata(path):
-            fpath = os.path.join(path, '.embryo/context.json')
-            context = {}
-            if os.path.isfile(fpath):
-                with open(fpath) as fin:
-                    json_str = fin.read()
-                    if json_str:
-                        context = json.loads(json_str)
-
-            if context is None:
-                return
-
-            abspath = os.path.abspath(path)
-            self.filesystem_metadata['/' + path] = {
-                'context': context,
-                'path': abspath,
-            }
+        self._load_fs_context(self.root)
 
         for obj in tree:
             if isinstance(obj, dict):
@@ -128,7 +116,7 @@ class Project(object):
                     child_path = join(parent_path, k)
                     result[k] = self._init_tree(obj[k], child_path)
                     self.directory_paths.add(child_path)
-                    set_filesystem_metadata(parent_path)
+                    self._load_fs_context(parent_path)
             elif obj.endswith('/'):
                 # it's an empty directory name
                 dir_name = obj
@@ -155,24 +143,37 @@ class Project(object):
 
         return result
 
-    def build(self, context: dict, style_config: dict = None) -> None:
+    def _load_fs_context(self, path):
+        fpath = os.path.join(path, '.embryo/context.json')
+        context = {}
+        if os.path.isfile(fpath):
+            with open(fpath) as fin:
+                json_str = fin.read()
+                if json_str:
+                    context = json.loads(json_str)
+        if context is not None:
+            self.fs['/' + path[len(self.root):]] = context
+
+    def build(self, style_config: Dict = None) -> None:
         """
-        Args:
-            - context: a context dict for use by jinja2 templates.
-            - style_config: yapf style options for code formating>
+        # Args
+        - embryo: the Embryo object
+        - context: a context dict for use by jinja2 templates.
+        - style_config: yapf style options for code formating>
 
         1. Create the directories and files in the file system.
         2. Render templates into said files.
         """
-        self.touch()    # create the project file structure
+        # create the project file structure
+        self.touch()
 
-        # This looks wonky but the truth is, we need to access the context dict
-        # within templates themselves, but jinja doesn't expose the dict by
-        # itself but instead makes the items into top-level attributes within
-        # each template. Therefore, we copy the context into itself so we can
-        # say {{ context|json|safe }}, for example, in order to write the
-        # context JSON to a string inside a template.
-        context['fs'] = self.filesystem_metadata
+        self.embryo.apply_on_create(self, self.fs)
+
+        # insert context into .embryo/context.json file
+        self._persist_context()
+
+        # add stored filesystem context to rendering context
+        self.embryo.context['fs'] = self.fs
 
         for fpath in self.fpaths:
             meta = self.template_meta.get(fpath)
@@ -180,7 +181,7 @@ class Project(object):
             if meta is not None:
                 tpl_name = meta['template_name']
                 ctx_path = meta.get('context_path')
-                ctx_obj = context
+                ctx_obj = self.embryo.context
 
                 # result the context sub-object to pass into
                 # the template as its context
@@ -194,8 +195,45 @@ class Project(object):
                     abs_fpath, tpl_name, ctx_obj, style_config=style_config
                 )
 
-        del context['context']
         return self.nested_embryos
+
+    def _persist_context(self) -> None:
+        """
+        Appnd the context dict to the .embryo/context.json object.
+        """
+        embryo = self.embryo
+        dot_embryo_path = os.path.join(self.root, '.embryo')
+        context_json_path = os.path.join(dot_embryo_path, 'context.json')
+
+        # create or load the .embryo/ dir in the "root" dir
+        if not os.path.isdir(dot_embryo_path):
+            os.mkdir(dot_embryo_path)
+
+        if os.path.isfile(context_json_path):
+            # read in the current data structure
+            with open(context_json_path, 'r') as fin:
+                embryo_name_2_contexts = json.load(fin)
+        else:
+            embryo_name_2_contexts = {}
+
+        embryo.context['embryo']['timestamp'] = to_timestamp(utc_now())
+
+        schema = embryo.context_schema()
+        if schema:
+            context = schema.dump(embryo.context, strict=True).data
+
+        if embryo.name not in embryo_name_2_contexts:
+            embryo_name_2_contexts[embryo.name] = [embryo.context]
+        else:
+            embryo_name_2_contexts[embryo.name].append(embryo.context)
+
+        # ...and append the current context
+        with open(context_json_path, 'w') as fout:
+            fout.write(
+                json.dumps(
+                    embryo_name_2_contexts, indent=2, sort_keys=True
+                ) + '\n'
+            )
 
     def touch(self) -> None:
         """

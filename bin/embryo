@@ -4,7 +4,7 @@
 
 from appyratus.util.argz import Prog, Subparser, Arg
 
-from embryo import EmbryoGenerator
+from embryo import Loader
 
 
 PROG = dict(
@@ -47,8 +47,25 @@ class EmbryoCreateSubparser(Subparser):
 class EmbryoProg(Prog):
     create_subparser = EmbryoCreateSubparser()
 
+    def parse_generator_kwargs(self):
+        """
+        Generate en embryo using command line (CLI) arguments as the initial
+        context dict (before the context.yml/json file is merged in, etc.)
+        """
+        cli_kwargs = {  # command-line (CLI) kwargs
+            k: getattr(self.args, k)
+            for k in dir(self.args) if not k.startswith('_')
+        }
+
+        return dict(
+            name=cli_kwargs['embryo'],
+            destination=cli_kwargs['dest'].rstrip('/'),
+            context=cli_kwargs,
+        )
+
     def create(self):
-        return EmbryoGenerator.from_args(self.args)
+        loader = Loader()
+        return loader.load(**self.parse_generator_kwargs())
 
 
 def main():

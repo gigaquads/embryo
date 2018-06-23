@@ -17,6 +17,7 @@ from .exceptions import EmbryoNotFound, TemplateLoadFailed
 from .environment import build_env
 from .embryo import Embryo
 from .constants import EMBRYO_FILE_NAMES, EMBRYO_PATH_ENV_VAR_NAME
+from .utils import say, scream
 
 
 class EmbryoGenerator(object):
@@ -38,14 +39,6 @@ class EmbryoGenerator(object):
             name=cli_kwargs['embryo'],
             dest=cli_kwargs['dest'],
             context=cli_kwargs)
-
-    @staticmethod
-    def log(message):
-        """
-        Convenience logging method.
-        """
-        # TODO: Use python logging.
-        print('>>> ' + message)
 
     def __init__(self):
         """
@@ -89,7 +82,7 @@ class EmbryoGenerator(object):
         if hooks.pre_create:
             hooks.pre_create(context)
         if embryo:
-            self.log('Running Embryo.pre_create hook...')
+            say('Executing pre-create logic...')
             context = embryo.apply_pre_create(context)
 
         # load the templates, including the tree yaml.
@@ -110,7 +103,7 @@ class EmbryoGenerator(object):
 
         # run any custom post-create logic that follows project creation
         if embryo:
-            self.log('Running Embryo.post_create hook...')
+            say('Executing post-create logic...')
             embryo.apply_post_create(projects[0], context)
         if hooks.post_create:  # XXX: deprecated
             hooks.post_create(projects[0], context)
@@ -168,7 +161,7 @@ class EmbryoGenerator(object):
                 try:
                     fname_template = self.jinja_env.from_string(rel_fpath)
                 except TemplateSyntaxError:
-                    self.log('Bad file path template: "{}"'.format(fpath))
+                    scream('Bad file path template: {p}', p=fpath)
                     raise
 
                 # finally rendered_rel_fpath is the rendered relative path
@@ -179,6 +172,7 @@ class EmbryoGenerator(object):
                     try:
                         templates[rendered_rel_fpath] = fin.read()
                     except Exception:
+                        scream('Could not load template: {t}', t=fpath)
                         raise TemplateLoadFailed(fpath)
 
         return templates
@@ -271,7 +265,7 @@ class EmbryoGenerator(object):
         """
         abs_filepath = self._build_filepath(path, 'hooks')
         if os.path.isfile(abs_filepath):
-            self.log('(DEPRECATED) Loading hooks.py')
+            say('Loading hooks.py... Deprecated. Don\'t use it.')
             module = importlib.import_module('hooks')
             hook_manager = HookManager(
                 pre_create=getattr(module, 'pre_create', None),
@@ -289,12 +283,23 @@ class EmbryoGenerator(object):
         """
         root = os.path.abspath(root or './')
 
-        self.log('Creating embryo...')
-        self.log('Embryo: {}'.format(path))
-        self.log('Destination: {}'.format(root))
-        self.log('Context: {}'.format(
-            json.dumps(context, indent=2, sort_keys=True)
+        say('Stimulating embryonic growth sequence...')
+        say('Embryo: {p}', p=path)
+        say('Destination: {d}', d=root)
+        say('Template context:\n{c}', c=json.dumps(
+            context,
+            indent=2,
+            sort_keys=True,
         ))
+        say('Initializing filesystem...\n\n{s}', s='\n'.join(
+            (' ' * 4) + s for s in
+            yaml.dump(
+                tree,
+                explicit_start=True,
+                explicit_end=True,
+                indent=2,
+                default_flow_style=False
+            ).split('\n')))
 
         project = Project(root=root, tree=tree, templates=templates)
         project.build(context)

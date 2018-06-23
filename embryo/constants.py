@@ -28,3 +28,9 @@ STYLE_CONFIG={
     'CONTINUATION_INDENT_WIDTH': 8,
     'INDENT_WIDTH': 4,
 }
+
+PROMPT_STYLES = {
+    'say': '>>>',
+    'scream': 'EEE',
+}
+

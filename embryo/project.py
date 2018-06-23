@@ -13,6 +13,7 @@ from appyratus.types import Yaml
 from .constants import RE_RENDERING_METADATA, STYLE_CONFIG
 from .environment import build_env
 from .exceptions import TemplateNotFound
+from .utils import say, scream
 
 
 class Project(object):
@@ -187,8 +188,6 @@ class Project(object):
                     for k in ctx_path.split('.'):
                         ctx_obj = ctx_obj[k]
 
-                assert fpath in self.fpaths
-
                 # render the template to fpath
                 abs_fpath = os.path.join(self.root, fpath.lstrip('/'))
                 self.render(
@@ -230,11 +229,11 @@ class Project(object):
             raise TemplateNotFound(template_name)
 
         try:
-            print('>>> Rendering {}'.format(abs_fpath))
+            say('Rendering {p}', p=abs_fpath)
             rendered_text = template.render(context).strip()
         except:
             # TODO: create and use log util function
-            print('>>> Problem rendering {}'.format(abs_fpath))
+            scream('Problem rendering {p}', p=abs_fpath)
             raise
 
         if abs_fpath.endswith('.py'):
@@ -245,7 +244,7 @@ class Project(object):
                 )[0]
             except:
                 # TODO: create and use log util function
-                print('>>> Problem formatting {}'.format(abs_fpath))
+                scream('Problem formatting {p}', p=abs_fpath)
                 raise
         else:
             formatted_text = rendered_text

@@ -5,11 +5,14 @@ import json
 from typing import Dict, List
 from importlib.util import spec_from_file_location, module_from_spec
 
+from appyratus.json import JsonEncoder
+
 from embryo import Project
 
 from .exceptions import EmbryoNotFound
 from .embryo import Embryo
 from .constants import EMBRYO_FILE_NAMES, EMBRYO_PATH_ENV_VAR_NAME
+from .utils import say, shout, build_embryo_filepath, get_nested_dict
 
 
 class Loader(object):
@@ -19,6 +22,10 @@ class Loader(object):
     object contains the instructions, as it were, for building the embryo in
     the filesystem; while the `Project` is responsible for the building.
     """
+
+    def __init__(self):
+        self._embryo_search_path = self._build_embryo_path()
+        self._json_encoder = JsonEncoder()
 
     def load(
         self,
@@ -33,7 +40,7 @@ class Loader(object):
         """
         # get an absolute filepath to the embryo directory
         embryo_path = self._resolve_embryo_path(name)
-        embryo = self._instantiate_embryo(embryo_path, destination, context)
+        embryo = self._build_embryo(embryo_path, destination, context)
 
         # run custom pre-create logic before project is built.
         embryo.apply_pre_create()
@@ -41,18 +48,14 @@ class Loader(object):
         # finally, build this project first, followed by any nested embryos. We
         # run the post-create logic after all nested projects have been built
         # so that we have known and fixed state at that point
-        projects = [self._build_project(embryo)]
-        projects.extend(self._build_nested_projects(embryo, projects[0]))
+        projects = self._build_project(embryo)
 
         # run any custom post-create logic that follows project creation
         embryo.apply_post_create(projects[0])
 
         return projects
 
-    def __init__(self):
-        self._embryo_search_path = self._build_embryo_path()
-
-    def _build_embryo_path(self):
+    def _build_embryo_path(self) -> List[str]:
         """
         Build an ordered list of all directories to search when loading an
         embryo from the filesystem.
@@ -82,13 +85,13 @@ class Loader(object):
 
         raise EmbryoNotFound(name)
 
-    def _instantiate_embryo(self, path, destination, context):
+    def _build_embryo(self, path, destination, context) -> Embryo:
         """
         The actual embryo is a Python object that contains various functions
         related to the generation of the project, like pre- and post-create
         hooks. This method loads and returns an instance.
         """
-        abs_filepath = self._build_filepath(path, 'embryo')
+        abs_filepath = build_embryo_filepath(path, 'embryo')
         embryo = None
 
         if os.path.isfile(abs_filepath):
@@ -119,18 +122,15 @@ class Loader(object):
         This takes all the prepared data structures and uses them to create a
         Project and build it. The build project is returned.
         """
-        self._log('Creating embryo...')
-        self._log('Embryo: {}'.format(embryo.path))
-        self._log('Destination: {}'.format(embryo.destination))
+        parent_project = Project(embryo)
+        parent_project.build()
 
-        project = Project(embryo)
-        project.build()
+        child_projects = self._build_nested_projects(embryo, parent_project)
 
-        self._log('Context: {}'.format(
-            json.dumps(embryo.context, indent=2, sort_keys=True)
-        ))
+        projects = [parent_project]
+        projects.extend(child_projects)
 
-        return project
+        return projects
 
     def _build_nested_projects(self, embryo, project) -> List[Project]:
         """
@@ -143,7 +143,7 @@ class Loader(object):
             # extract the nested context sub-dict to pass into the nested
             # project as its own context, if specified.
             ctx_path = item.get('context_path')
-            ctx_obj = self._get_nested_dict(ctx_path, embryo.context)
+            ctx_obj = get_nested_dict(embryo.context, ctx_path)
 
             nested_projects.append(
                 self.create(
@@ -154,32 +154,3 @@ class Loader(object):
             )
 
         return nested_projects
-
-    @staticmethod
-    def _build_filepath(path: str, key: str) -> str:
-        """
-        This builds an absolute filepath to a recognized file in a well-formed
-        embryo. See EMBRYO_FILE_NAMES.
-        """
-        assert key in EMBRYO_FILE_NAMES
-        return os.path.join(path, EMBRYO_FILE_NAMES[key])
-
-    @staticmethod
-    def _get_nested_dict(dotted_path, root_dict):
-        """
-        Return a nested dictionary, located by its dotted path. If the dict is
-        {a: {b: {c: 1}}} and the path is a.b, then {c: 1} will be returned.
-        """
-        d = root_dict
-        for k in dotted_path.split('.'):
-            d = d[k]
-        return d
-
-    @staticmethod
-    def _log(message):
-        """
-        Convenience logging method.
-        """
-        # TODO: Use python logging.
-        print('>>> ' + message)
-

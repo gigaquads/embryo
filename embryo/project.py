@@ -12,11 +12,12 @@ from jinja2 import Template
 from yapf.yapflib.yapf_api import FormatCode
 from appyratus.types import Yaml
 from appyratus.time import to_timestamp, utc_now
+from appyratus.json import JsonEncoder
 
 from .constants import RE_RENDERING_METADATA, STYLE_CONFIG
 from .environment import build_env
 from .exceptions import TemplateNotFound
-from .utils import say, scream
+from .utils import say, shout
 
 
 class Project(object):
@@ -24,6 +25,8 @@ class Project(object):
     A `Project`  is responsible for taking the loaded instructions owned by an
     `Embryo` object and generating files into the filesystem.
     """
+
+    _json_encoder = JsonEncoder()
 
     def __init__(self, embryo: 'Embryo'):
         """
@@ -164,6 +167,11 @@ class Project(object):
         1. Create the directories and files in the file system.
         2. Render templates into said files.
         """
+        say('Stimulating embryonic growth sequence...')
+        say('Embryo Name: {name}', name=self.embryo.name)
+        say('Embryo Location: {path}', path=self.embryo.path)
+        say('Destination directory: {dest}', dest=self.embryo.destination)
+
         # create the project file structure
         self.touch()
 
@@ -174,6 +182,21 @@ class Project(object):
 
         # add stored filesystem context to rendering context
         self.embryo.context['fs'] = self.fs
+
+        say('Template Context:\n\n{ctx}\n', ctx=json.dumps(
+            json.loads(self._json_encoder.encode(self.embryo.context)),
+            indent=2, sort_keys=True
+        ))
+
+        say('Filesystem state:\n\n{tree}', tree='\n'.join(
+            ' ' * 4 + line for line in yaml.dump(
+                self.embryo.tree,
+                explicit_start=True,
+                explicit_end=True,
+                default_flow_style=False,
+                indent=2,
+            ).split('\n')
+        ))
 
         for fpath in self.fpaths:
             meta = self.template_meta.get(fpath)
@@ -271,7 +294,7 @@ class Project(object):
             rendered_text = template.render(context).strip()
         except:
             # TODO: create and use log util function
-            scream('Problem rendering {p}', p=abs_fpath)
+            shout('Problem rendering {p}', p=abs_fpath)
             raise
 
         if abs_fpath.endswith('.py'):
@@ -282,7 +305,7 @@ class Project(object):
                 )[0]
             except:
                 # TODO: create and use log util function
-                scream('Problem formatting {p}', p=abs_fpath)
+                shout('Problem formatting {p}', p=abs_fpath)
                 raise
         else:
             formatted_text = rendered_text

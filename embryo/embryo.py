@@ -75,7 +75,7 @@ class Embryo(object):
         dict, using schema.load(context). A return value of None skips this
         process, i.e. it is optional.
         """
-        return EmbryoSchema()
+        return ContextSchema()
 
     def pre_create(self) -> None:
         """
@@ -102,7 +102,7 @@ class Embryo(object):
         """
         This method should be called only by Loader objects.
         """
-        print('>>> Running Embryo.pre_create hook...')
+        print('>>> Running pre-create method...')
 
         # load/validate context as prepared by the Loader and Project
         # during the buld process.
@@ -119,7 +119,7 @@ class Embryo(object):
             self.context = schema.load(self.context, strict=True).data
 
     def apply_on_create(self, project: Project, fs: Dict) -> None:
-        print('>>> Running Embryo.on_create hook...')
+        print('>>> Running on-create method...')
         self.on_create(project, fs)
 
         # we re-load the context because it is possible that it has been
@@ -133,7 +133,7 @@ class Embryo(object):
         """
         This method should be called only by Loader objects.
         """
-        print('>>> Running Embryo.post_create hook...')
+        print('>>> Running post-create method...')
         self.post_create(project)
 
     def _load_templates(self, context: Dict):

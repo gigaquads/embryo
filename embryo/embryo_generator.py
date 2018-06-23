@@ -6,10 +6,10 @@ import yaml
 
 from typing import Dict, List
 from importlib.util import spec_from_file_location, module_from_spec
-
 from jinja2 import Template
 
 from embryo import Project
+from appyratus.json.json_encoder import JsonEncoder
 from appyratus.types import Yaml
 
 from .hooks import HookManager
@@ -85,19 +85,19 @@ class EmbryoGenerator(object):
             hooks.pre_create(context)
         if embryo:
             self.log('Running Embryo.pre_create hook...')
-            context = embryo.apply_pre_create(context)
+            dumped_context = embryo.apply_pre_create(context)
+
 
         # load the templates, including the tree yaml.
-        templates = self._load_templates(path, context)
-        tree = self._load_tree(path, context)
+        templates = self._load_templates(path, dumped_context)
+        tree = self._load_tree(path, dumped_context)
 
         # finally, build this project first, followed by any nested embryos. We
         # run the post-create logic after all nested projects have been built
         # so that we have known and fixed state at that point
         projects = []
-
         projects.append(
-            self._build_project(path, context, dest, tree, templates)
+            self._build_project(path, dumped_context, dest, tree, templates)
         )
         projects.extend(
             self._build_nested_projects(path, context, projects[0])
@@ -107,7 +107,7 @@ class EmbryoGenerator(object):
         if embryo:
             self.log('Running Embryo.post_create hook...')
             embryo.apply_post_create(projects[0], context)
-        if hooks.post_create:  # XXX: deprecated
+        if hooks.post_create:    # XXX: deprecated
             hooks.post_create(projects[0], context)
 
         return projects
@@ -127,7 +127,7 @@ class EmbryoGenerator(object):
             for path in self.embryo_search_path:
                 path = '{}/{}'.format(path.rstrip('/'), name)
                 if os.path.exists(path):
-                    return path 
+                    return path
 
         raise EmbryoNotFound(name)
 
@@ -194,7 +194,7 @@ class EmbryoGenerator(object):
             2. Variables provided on the commandline interface, like --foo 1.
             3. Data provided from a file, named in the --context CLI arg.
         """
-        fpath = self._build_filepath(path, 'context') 
+        fpath = self._build_filepath(path, 'context')
         context = Yaml.from_file(fpath) or {}
 
         # first, merge all context variables declared directly on the CLI into
@@ -233,7 +233,7 @@ class EmbryoGenerator(object):
 
             # create an instance of the first Embryo subclass found
             for _, klass in inspect.getmembers(module, inspect.isclass):
-                if issubclass(klass, Embryo):
+                if issubclass(klass, Embryo) and klass is not Embryo:
                     embryo = klass()
                     break
 
@@ -268,9 +268,13 @@ class EmbryoGenerator(object):
         self.log('Creating embryo...')
         self.log('Embryo: {}'.format(path))
         self.log('Destination: {}'.format(root))
-        self.log('Context: {}'.format(
-            json.dumps(context, indent=2, sort_keys=True)
-        ))
+
+        encoder = JsonEncoder()
+        json_str = encoder.encode(context)
+        self.log(
+            'Context: {}'.
+            format(json.dumps(json.loads(json_str), indent=2, sort_keys=True))
+        )
 
         project = Project(root=root, tree=tree, templates=templates)
         project.build(context)

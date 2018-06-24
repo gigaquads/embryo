@@ -7,13 +7,14 @@ from jinja2 import Template
 from jinja2.exceptions import TemplateSyntaxError
 
 from appyratus.validation import Schema
-from appyratus.validation.fields import Object, Anything, Str, DateTime
+from appyratus.validation import fields
 from appyratus.types import Yaml
 
 from .project import Project
 from .environment import build_env
 from .exceptions import TemplateLoadFailed
 from .constants import EMBRYO_FILE_NAMES
+from .utils import say, shout
 
 
 class ContextSchema(Schema):
@@ -22,14 +23,14 @@ class ContextSchema(Schema):
     dict, using schema.load(context). A return value of None skips this
     process, i.e. it is optional.
     """
-    embryo = Anything()
-    #embryo = Object({
-    #    'timestamp': DateTime(),
-    #    'name': Str(),
-    #    'action': Str(),
-    #    'path': Str(),
-    #    'destination': Str(),
-    #})
+    fs = fields.Dict()
+    embryo = fields.Object({
+        'timestamp': fields.DateTime(),
+        'name': fields.Str(),
+        'action': fields.Str(),
+        'path': fields.Str(),
+        'destination': fields.Str(),
+    })
 
 
 class Embryo(object):
@@ -102,7 +103,7 @@ class Embryo(object):
         """
         This method should be called only by Loader objects.
         """
-        print('>>> Running pre-create method...')
+        say('Running pre-create method...')
 
         # load/validate context as prepared by the Loader and Project
         # during the buld process.
@@ -119,7 +120,7 @@ class Embryo(object):
             self.context = schema.load(self.context, strict=True).data
 
     def apply_on_create(self, project: Project, fs: Dict) -> None:
-        print('>>> Running on-create method...')
+        say('Running on-create method...')
         self.on_create(project, fs)
 
         # we re-load the context because it is possible that it has been
@@ -133,7 +134,7 @@ class Embryo(object):
         """
         This method should be called only by Loader objects.
         """
-        print('>>> Running post-create method...')
+        say('Running post-create method...')
         self.post_create(project)
 
     def _load_templates(self, context: Dict):
@@ -168,7 +169,8 @@ class Embryo(object):
                 try:
                     fname_template = self.jinja_env.from_string(rel_fpath)
                 except TemplateSyntaxError:
-                    print('>>> Bad file path template: "{}"'.format(fpath))
+                    shout('Could not render template '
+                          'for file path string: {p}', p=fpath)
                     raise
 
                 # finally rendered_rel_fpath is the rendered relative path

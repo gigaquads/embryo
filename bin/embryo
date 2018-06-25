@@ -59,13 +59,13 @@ class EmbryoProg(Prog):
 
         return dict(
             name=cli_kwargs['embryo'],
-            destination=cli_kwargs['dest'].rstrip('/'),
             context=cli_kwargs,
         )
 
     def create(self):
         loader = Loader()
-        return loader.load(**self.parse_generator_kwargs())
+        loader.load(**self.parse_generator_kwargs())
+        return loader.build()
 
 
 def main():

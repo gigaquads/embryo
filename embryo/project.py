@@ -3,6 +3,7 @@ import os
 import json
 import yaml
 
+from collections import defaultdict
 from typing import Dict
 from types import ModuleType
 from os.path import join
@@ -11,13 +12,16 @@ from copy import deepcopy
 from jinja2 import Template
 from yapf.yapflib.yapf_api import FormatCode
 from appyratus.types import Yaml
-from appyratus.time import to_timestamp, utc_now
+from appyratus.time import utc_now
 from appyratus.json import JsonEncoder
 
 from .constants import RE_RENDERING_METADATA, STYLE_CONFIG
 from .environment import build_env
 from .exceptions import TemplateNotFound
-from .utils import say, shout
+from .utils import (
+    say, shout, import_embryo, resolve_embryo_path,
+    build_embryo_search_path,
+)
 
 
 class Project(object):
@@ -40,10 +44,10 @@ class Project(object):
         self.fs = {}
 
         self.embryo = embryo
-        self.templates = self._init_templates(embryo.templates)
-        self.tree = self._init_tree(embryo.tree)
+        self.templates = self._build_jinja2_templates(embryo.templates)
+        self.tree = self._analyze_tree(embryo.tree)
 
-    def _init_templates(self, templates):
+    def _build_jinja2_templates(self, templates):
         """
         Load template files from a templates module, ignoring any "private"
         object starting with an _. Return a dict, mapping each Template
@@ -73,7 +77,7 @@ class Project(object):
 
         return loaded_templates
 
-    def _init_tree(self, tree, parent_path: str = '') -> dict:
+    def _analyze_tree(self, tree, parent_path: str = '') -> dict:
         """
         Initializes `directory_paths`, `fpaths`, and `template_meta`. It
         returns a dict-based tree structure.
@@ -86,7 +90,7 @@ class Project(object):
         if not tree:
             return result
 
-        self._load_fs_context(self.root)
+        self._load_embryo_from_persisted_context(self.root)
 
         for obj in tree:
             if isinstance(obj, dict):
@@ -115,11 +119,11 @@ class Project(object):
                         self.fpaths.add(fpath)
                         result[k] = True
                 else:
-                    # call _init_tree on subdirectory
+                    # call _analyze_tree on subdirectory
                     child_path = join(parent_path, k)
-                    result[k] = self._init_tree(obj[k], child_path)
+                    result[k] = self._analyze_tree(obj[k], child_path)
                     self.directory_paths.add(child_path)
-                    self._load_fs_context(parent_path)
+                    self._load_embryo_from_persisted_context(parent_path)
             elif obj.endswith('/'):
                 # it's an empty directory name
                 dir_name = obj
@@ -146,16 +150,30 @@ class Project(object):
 
         return result
 
-    def _load_fs_context(self, path):
+    def _load_embryo_from_persisted_context(self, path):
         fpath = os.path.join(path, '.embryo/context.json')
-        context = {}
+        context_table = {}
+        embryo_table = defaultdict(list)
+
         if os.path.isfile(fpath):
             with open(fpath) as fin:
                 json_str = fin.read()
                 if json_str:
-                    context = json.loads(json_str)
-        if context is not None:
-            self.fs['/' + path[len(self.root):]] = context
+                    context_table = json.loads(json_str)
+
+        self.fs['/' + path[len(self.root):]] = embryo_table
+
+        if context_table:
+            search_path = build_embryo_search_path()
+            for embryo_name, context_list in context_table.items():
+                for context in context_list:
+                    # we determine the embryo path dynamically rather than
+                    # using the path stored in the persisted context just in
+                    # case the location of the embryo has changed.
+                    embryo_name = context['embryo']['name']
+                    embryo_path = resolve_embryo_path(search_path, embryo_name)
+                    embryo = import_embryo(embryo_path, context, True)
+                    embryo_table[embryo_name].append(embryo)
 
     def build(self, style_config: Dict = None) -> None:
         """
@@ -227,6 +245,7 @@ class Project(object):
         embryo = self.embryo
         dot_embryo_path = os.path.join(self.root, '.embryo')
         context_json_path = os.path.join(dot_embryo_path, 'context.json')
+        embryo_name_2_contexts = {}
 
         # create or load the .embryo/ dir in the "root" dir
         if not os.path.isdir(dot_embryo_path):
@@ -235,11 +254,11 @@ class Project(object):
         if os.path.isfile(context_json_path):
             # read in the current data structure
             with open(context_json_path, 'r') as fin:
-                embryo_name_2_contexts = json.load(fin)
-        else:
-            embryo_name_2_contexts = {}
+                json_str = fin.read()
+                if json_str:
+                    embryo_name_2_contexts = json.loads(json_str)
 
-        embryo.context['embryo']['timestamp'] = to_timestamp(utc_now())
+        embryo.context['embryo']['timestamp'] = utc_now()
 
         schema = embryo.context_schema()
         if schema:
@@ -254,7 +273,9 @@ class Project(object):
         with open(context_json_path, 'w') as fout:
             fout.write(
                 json.dumps(
-                    embryo_name_2_contexts, indent=2, sort_keys=True
+                    json.loads(
+                        self._json_encoder.encode(embryo_name_2_contexts)
+                    ), indent=2, sort_keys=True
                 ) + '\n'
             )
 
@@ -292,8 +313,7 @@ class Project(object):
         try:
             say('Rendering {p}', p=abs_fpath)
             rendered_text = template.render(context).strip()
-        except:
-            # TODO: create and use log util function
+        except Exception:
             shout('Problem rendering {p}', p=abs_fpath)
             raise
 
@@ -303,8 +323,7 @@ class Project(object):
                 formatted_text = FormatCode(
                     rendered_text, style_config=style_config
                 )[0]
-            except:
-                # TODO: create and use log util function
+            except Exception:
                 shout('Problem formatting {p}', p=abs_fpath)
                 raise
         else:

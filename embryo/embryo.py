@@ -14,7 +14,7 @@ from .project import Project
 from .environment import build_env
 from .exceptions import TemplateLoadFailed
 from .constants import EMBRYO_FILE_NAMES
-from .utils import say, shout
+from .utils import say, shout, build_embryo_filepath
 
 
 class ContextSchema(Schema):
@@ -40,16 +40,24 @@ class Embryo(object):
     """
 
     def __init__(self, path):
-        # the jinja2 env is used in rendering filepath template strings
-        # as well as the templatized tree.yml file.
         self._path = path
-        self.jinja_env = build_env()
+
         self.context = None
         self.tree = None
         self.templates = None
 
-    def load(self, destination, context):
-        self.context = self._load_context(destination or './', context)
+        # the jinja2 env is used in rendering filepath template strings
+        # as well as the templatized tree.yml file.
+        self.jinja_env = build_env()
+
+    def __repr__(self):
+        return '<{class_name}({embryo_path})>'.format(
+            class_name=self.__class__.__name__,
+            embryo_path=self._path,
+        )
+
+    def load(self, context, from_fs=False):
+        self.context = self._load_context(context, from_fs)
         self.tree = self._load_tree(self.context)
         self.templates = self._load_templates(context)
 
@@ -67,7 +75,11 @@ class Embryo(object):
 
     @property
     def action(self):
-        return self.context['embryo']['create']
+        return self.context['embryo']['action']
+
+    @property
+    def timestamp(self):
+        return self.context['embryo']['timestamp']
 
     @staticmethod
     def context_schema():
@@ -137,6 +149,51 @@ class Embryo(object):
         say('Running post-create method...')
         self.post_create(project)
 
+    def _load_context(self, cli_kwargs: Dict = None, from_fs=False) -> Dict:
+        """
+        Context can come from three places and is merged into a computed dict
+        in the following order:
+
+            1. Data in the embryo's static context.json/yml file.
+            2. Variables provided on the commandline interface, like --foo 1.
+            3. Data provided from a file, named in the --context arg.
+        """
+        path = self._path
+        fpath = build_embryo_filepath(path, 'context')
+        context = Yaml.from_file(fpath) or {}
+
+        # if a --context PATH_TO_JSON_FILE was provided on the CLI then try to
+        # load that file and merge it into the existing context dict.
+        cli_context_value = cli_kwargs.pop('context', None)
+        if cli_context_value:
+            if cli_context_value.endswith('.json'):
+                with open(context_filepath) as context_file:
+                    cli_context = json.load(context_file)
+            elif cli_context_value.endswith('.yml'):
+                cli_context = Yaml.from_file(context_filepath)
+            else:
+                # assume it's a JSON object string
+                cli_context = json.loads(cli_context_value)
+
+            context.update(cli_context)
+
+        # we collect params used by Embryo creation into a separate "embryo"
+        # subobject and add it to the context dict with setdefault so as not to
+        # overwrite any user defined variable by the same name, "embryo":
+        if not from_fs:
+            context.setdefault('embryo', {
+                'name': cli_kwargs.pop('embryo'),
+                'path': path,
+                'destination': os.path.abspath(cli_kwargs.pop('dest')),
+                'action': cli_kwargs.pop('action'),
+            })
+
+        # Note that the remaining CLI kwargs should be custom context
+        # variables, not Embryo creation parameters. We add these vars here.
+        context.update(cli_kwargs)
+
+        return context
+
     def _load_templates(self, context: Dict):
         """
         Read all template file. Each template string is stored in a dict, keyed
@@ -144,7 +201,7 @@ class Embryo(object):
         directory. The file paths themselves are templatized and are therefore
         rendered as well in this procedure.
         """
-        templates_path = self._build_filepath(self._path, 'templates')
+        templates_path = build_embryo_filepath(self._path, 'templates')
         templates = {}
 
         if not os.path.isdir(templates_path):
@@ -190,66 +247,8 @@ class Embryo(object):
         Read and deserialized the file system tree yaml file as well as render
         it, as it is a templatized file.
         """
-        fpath = self._build_filepath(self._path, 'tree')
+        fpath = build_embryo_filepath(self._path, 'tree')
         with open(fpath) as tree_file:
             tree_yml_tpl = tree_file.read()
             tree_yml = self.jinja_env.from_string(tree_yml_tpl).render(context)
             return yaml.load(tree_yml)
-
-    def _load_context(
-        self,
-        dest: str,
-        cli_kwargs: Dict = None
-    ) -> Dict:
-        """
-        Context can come from three places and is merged into a computed dict
-        in the following order:
-
-            1. Data in the embryo's static context.json/yml file.
-            2. Variables provided on the commandline interface, like --foo 1.
-            3. Data provided from a file, named in the --context CLI arg.
-            4. Load data stored in the dest directory under the .embryo dir.
-        """
-        path = self._path
-        fpath = self._build_filepath(path, 'context')
-        context = Yaml.from_file(fpath) or {}
-
-        # if a --context PATH_TO_JSON_FILE was provided on the CLI then try to
-        # load that file and merge it into the existing context dict.
-        cli_context_value = cli_kwargs.pop('context', None)
-        if cli_context_value:
-            if cli_context_value.endswith('.json'):
-                with open(context_filepath) as context_file:
-                    cli_context = json.load(context_file)
-            elif cli_context_value.endswith('.yml'):
-                cli_context = Yaml.from_file(context_filepath)
-            else:
-                # assume it's a JSON object string
-                cli_context = json.loads(cli_context_value)
-
-            context.update(cli_context)
-
-        # we collect params used by Embryo creation into a separate "embryo"
-        # subobject and add it to the context dict with setdefault so as not to
-        # overwrite any user defined variable by the same name, "embryo":
-        context.setdefault('embryo', {
-            'name': cli_kwargs.pop('embryo'),
-            'path': path,
-            'destination': os.path.abspath(cli_kwargs.pop('dest')),
-            'action': cli_kwargs.pop('action'),
-        })
-
-        # Note that the remaining CLI kwargs should be custom context variables,
-        # not Embryo creation parameters. We add these vars here.
-        context.update(cli_kwargs)
-
-        return context
-
-    @staticmethod  # XXX: put in utils and use here and in generator
-    def _build_filepath(path: str, key: str) -> str:
-        """
-        This builds an absolute filepath to a recognized file in a well-formed
-        embryo. See EMBRYO_FILE_NAMES.
-        """
-        assert key in EMBRYO_FILE_NAMES
-        return os.path.join(path, EMBRYO_FILE_NAMES[key])

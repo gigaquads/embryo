@@ -1,7 +1,9 @@
 import os
 import yaml
+import ujson
 
-from typing import Dict
+from typing import Dict, List
+from collections import defaultdict
 
 from jinja2 import Template
 from jinja2.exceptions import TemplateSyntaxError
@@ -14,7 +16,10 @@ from .project import Project
 from .environment import build_env
 from .exceptions import TemplateLoadFailed
 from .constants import EMBRYO_FILE_NAMES
-from .utils import say, shout, build_embryo_filepath
+from .utils import (
+    say, shout, build_embryo_filepath, resolve_embryo_path,
+    import_embryo, build_embryo_search_path,
+)
 
 
 class ContextSchema(Schema):
@@ -23,7 +28,6 @@ class ContextSchema(Schema):
     dict, using schema.load(context). A return value of None skips this
     process, i.e. it is optional.
     """
-    fs = fields.Dict()
     embryo = fields.Object({
         'timestamp': fields.DateTime(),
         'name': fields.Str(),
@@ -49,6 +53,10 @@ class Embryo(object):
         # the jinja2 env is used in rendering filepath template strings
         # as well as the templatized tree.yml file.
         self.jinja_env = build_env()
+
+        # the DotFileManager loads embryos corresponding to the contents of
+        # .embryo/context.json files and provides an interface to them.
+        self.dot = DotFileManager()
 
     def __repr__(self):
         return '<{class_name}({embryo_path})>'.format(
@@ -98,7 +106,7 @@ class Embryo(object):
         This method should be overriden.
         """
 
-    def on_create(self, project: Project, fs: Dict) -> None:
+    def on_create(self, project: Project) -> None:
         """
         This logic follows the rendering of the tree.yml and templatized file
         paths. At this point, we have access to stored filesystem context.
@@ -131,9 +139,11 @@ class Embryo(object):
             # TODO: all we want to do is re-validate here, not reload
             self.context = schema.load(self.context, strict=True).data
 
-    def apply_on_create(self, project: Project, fs: Dict) -> None:
+    def apply_on_create(self, project: Project) -> None:
+        self.dot.load(self.destination)
+
         say('Running on-create method...')
-        self.on_create(project, fs)
+        self.on_create(project)
 
         # we re-load the context because it is possible that it has been
         # modified in-place by pre_create.
@@ -252,3 +262,91 @@ class Embryo(object):
             tree_yml_tpl = tree_file.read()
             tree_yml = self.jinja_env.from_string(tree_yml_tpl).render(context)
             return yaml.load(tree_yml)
+
+    def _load_dot_files(self):
+        """
+        To be run *after* the project is built.
+        """
+        path_map = defaultdict(lambda: defaultdict(list))
+        name_map = defaultdict(list)
+        for path, subpaths, fnames in os.walk(self.destination):
+            context_json_fpath = os.path.join(path, '.embryo/context.json')
+            if os.path.isfile(context_json_fpath):
+                with open(context_json_fpath) as fin:
+                    json_obj_str = fin.read()
+                    if json_obj_str:
+                        embryo_name2context_list = ujson.loads(json_obj_str)
+
+
+
+class DotFileManager(object):
+    """
+    `DotFileManager` handles the loading of contents stored under the .embryo
+    directories contained within the filesystem tree defined by an embryo. It
+    provides a high-level interface for searching historical Embryo objects
+    whose context data was discovered in .embryo/context.json files.
+    """
+    def __init__(self):
+        self._embryo_search_path = build_embryo_search_path()
+        self._embryo_name_path2embryos = defaultdict(list)
+        self._embryo_name2embryos = defaultdict(list)
+        self._path2embryos = defaultdict(list)
+
+    def load(self, root: str) -> None:
+        """
+        To be run *after* the project is built. This loads all context.json
+        files found in the filesystem, relative to a root directory. It imports
+        and instantiates the Python Embryo objects corresponding to the persist
+        context entries. This is called by the embryo `apply_on_create` method.
+        """
+        for path, subpaths, fnames in os.walk(root):
+            embryo_name2context_list = self._load_context_json(path)
+            for embryo_name, context_list in embryo_name2context_list.items():
+                for context in context_list:
+                    embryo = self._load_embryo(context)
+                    path_rel_to_root = '/' + path[len(root):]
+                    self._embryo_name_path2embryos[embryo_name, path_rel_to_root].append(embryo)
+                    self._embryo_name2embryos[embryo_name].append(embryo)
+                    self._path2embryos[path_rel_to_root].append(embryo)
+
+    def find(self, name: str = None, path: str = None) -> List[Embryo]:
+        """
+        Return a list of Embryo objects discovered in the filesystem tree
+        relative to the root directory passed into the `load` method. Name or
+        path or both can be specified. When both are specified, we return the
+        Embryos with the given name within the given directory path.
+        """
+        if name and (not path):
+            return self._embryo_name2embryos[name]
+        elif (not name) and path:
+            return self._path2embryos[path]
+        elif name and path:
+            return self._embryo_name_path2embryos[name, path]
+        else:
+            return []
+                 
+    def _load_context_json(self, dir_path: str) -> Dict:
+        """
+        Read in a context.json file to a dict.
+        """
+        context_json_fpath = os.path.join(dir_path, '.embryo/context.json')
+        loaded_json_obj = {}
+
+        if os.path.isfile(context_json_fpath):
+            with open(context_json_fpath) as fin:
+                json_obj_str = fin.read()
+                if json_obj_str:
+                    loaded_json_obj = ujson.loads(json_obj_str)
+
+        return loaded_json_obj
+
+    def _load_embryo(self, context) -> Embryo:
+        """
+        Import and instantiate an Embryo object using a context dict loaded
+        from a context.json file.
+        """
+        embryo_name = context['embryo']['name']
+        embryo_path = resolve_embryo_path(self._embryo_search_path, embryo_name)
+        embryo = import_embryo(embryo_path, context, True)
+        return embryo
+

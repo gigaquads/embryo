@@ -4,7 +4,7 @@ import json
 import yaml
 
 from collections import defaultdict
-from typing import Dict
+from typing import Dict, List
 from types import ModuleType
 from os.path import join
 from copy import deepcopy
@@ -41,7 +41,6 @@ class Project(object):
         self.directory_paths = set()
         self.template_meta = {}
         self.nested_embryos = []
-        self.fs = {}
 
         self.embryo = embryo
         self.templates = self._build_jinja2_templates(embryo.templates)
@@ -90,8 +89,6 @@ class Project(object):
         if not tree:
             return result
 
-        self._load_embryo_from_persisted_context(self.root)
-
         for obj in tree:
             if isinstance(obj, dict):
                 k = list(obj.keys())[0]
@@ -123,7 +120,6 @@ class Project(object):
                     child_path = join(parent_path, k)
                     result[k] = self._analyze_tree(obj[k], child_path)
                     self.directory_paths.add(child_path)
-                    self._load_embryo_from_persisted_context(parent_path)
             elif obj.endswith('/'):
                 # it's an empty directory name
                 dir_name = obj
@@ -150,31 +146,6 @@ class Project(object):
 
         return result
 
-    def _load_embryo_from_persisted_context(self, path):
-        fpath = os.path.join(path, '.embryo/context.json')
-        context_table = {}
-        embryo_table = defaultdict(list)
-
-        if os.path.isfile(fpath):
-            with open(fpath) as fin:
-                json_str = fin.read()
-                if json_str:
-                    context_table = json.loads(json_str)
-
-        self.fs['/' + path[len(self.root):]] = embryo_table
-
-        if context_table:
-            search_path = build_embryo_search_path()
-            for embryo_name, context_list in context_table.items():
-                for context in context_list:
-                    # we determine the embryo path dynamically rather than
-                    # using the path stored in the persisted context just in
-                    # case the location of the embryo has changed.
-                    embryo_name = context['embryo']['name']
-                    embryo_path = resolve_embryo_path(search_path, embryo_name)
-                    embryo = import_embryo(embryo_path, context, True)
-                    embryo_table[embryo_name].append(embryo)
-
     def build(self, style_config: Dict = None) -> None:
         """
         # Args
@@ -193,24 +164,21 @@ class Project(object):
         # create the project file structure
         self.touch()
 
-        self.embryo.apply_on_create(self, self.fs)
+        self.embryo.apply_on_create(self)
 
         # insert context into .embryo/context.json file
         self._persist_context()
-
-        # add stored filesystem context to rendering context
-        self.embryo.context['fs'] = self.fs
 
         say('Template Context:\n\n{ctx}\n', ctx=json.dumps(
             json.loads(self._json_encoder.encode(self.embryo.context)),
             indent=2, sort_keys=True
         ))
 
-        say('Filesystem state:\n\n{tree}', tree='\n'.join(
+        say('Filesystem Tree:\n\n{tree}', tree='\n'.join(
             ' ' * 4 + line for line in yaml.dump(
                 self.embryo.tree,
-                explicit_start=True,
-                explicit_end=True,
+                explicit_start=False,
+                explicit_end=False,
                 default_flow_style=False,
                 indent=2,
             ).split('\n')
@@ -230,8 +198,13 @@ class Project(object):
                     for k in ctx_path.split('.'):
                         ctx_obj = ctx_obj[k]
 
-                # render the template to fpath
+                # absolute file path for the rendered template
                 abs_fpath = os.path.join(self.root, fpath.lstrip('/'))
+
+                # inject the Embryo Python object into the context
+                ctx_obj = deepcopy(ctx_obj)
+                ctx_obj['embryo'] = self.embryo
+
                 self.render(
                     abs_fpath, tpl_name, ctx_obj, style_config=style_config
                 )

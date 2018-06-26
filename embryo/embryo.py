@@ -17,8 +17,12 @@ from .environment import build_env
 from .exceptions import TemplateLoadFailed
 from .constants import EMBRYO_FILE_NAMES
 from .utils import (
-    say, shout, build_embryo_filepath, resolve_embryo_path,
-    import_embryo, build_embryo_search_path,
+    say,
+    shout,
+    build_embryo_filepath,
+    resolve_embryo_path,
+    import_embryo,
+    build_embryo_search_path,
 )
 
 
@@ -28,13 +32,15 @@ class ContextSchema(Schema):
     dict, using schema.load(context). A return value of None skips this
     process, i.e. it is optional.
     """
-    embryo = fields.Object({
-        'timestamp': fields.DateTime(),
-        'name': fields.Str(),
-        'action': fields.Str(),
-        'path': fields.Str(),
-        'destination': fields.Str(),
-    })
+    embryo = fields.Object(
+        {
+            'timestamp': fields.DateTime(),
+            'name': fields.Str(),
+            'action': fields.Str(),
+            'path': fields.Str(),
+            'destination': fields.Str(),
+        }
+    )
 
 
 class Embryo(object):
@@ -178,12 +184,12 @@ class Embryo(object):
         if cli_context_value:
             if cli_context_value.endswith('.json'):
                 with open(context_filepath) as context_file:
-                    cli_context = json.load(context_file)
+                    cli_context = ujson.load(context_file)
             elif cli_context_value.endswith('.yml'):
                 cli_context = Yaml.from_file(context_filepath)
             else:
                 # assume it's a JSON object string
-                cli_context = json.loads(cli_context_value)
+                cli_context = ujson.loads(cli_context_value)
 
             context.update(cli_context)
 
@@ -191,12 +197,14 @@ class Embryo(object):
         # subobject and add it to the context dict with setdefault so as not to
         # overwrite any user defined variable by the same name, "embryo":
         if not from_fs:
-            context.setdefault('embryo', {
-                'name': cli_kwargs.pop('embryo'),
-                'path': path,
-                'destination': os.path.abspath(cli_kwargs.pop('dest')),
-                'action': cli_kwargs.pop('action'),
-            })
+            context.setdefault(
+                'embryo', {
+                    'name': cli_kwargs.pop('embryo'),
+                    'path': path,
+                    'destination': os.path.abspath(cli_kwargs.pop('dest')),
+                    'action': cli_kwargs.pop('action'),
+                }
+            )
 
         # Note that the remaining CLI kwargs should be custom context
         # variables, not Embryo creation parameters. We add these vars here.
@@ -236,8 +244,11 @@ class Embryo(object):
                 try:
                     fname_template = self.jinja_env.from_string(rel_fpath)
                 except TemplateSyntaxError:
-                    shout('Could not render template '
-                          'for file path string: {p}', p=fpath)
+                    shout(
+                        'Could not render template '
+                        'for file path string: {p}',
+                        p=fpath
+                    )
                     raise
 
                 # finally rendered_rel_fpath is the rendered relative path
@@ -271,6 +282,7 @@ class DotFileManager(object):
     provides a high-level interface for searching historical Embryo objects
     whose context data was discovered in .embryo/context.json files.
     """
+
     def __init__(self):
         self._embryo_search_path = build_embryo_search_path()
         self._embryo_name_path2embryos = defaultdict(list)
@@ -290,7 +302,9 @@ class DotFileManager(object):
                 for context in context_list:
                     embryo = self._load_embryo(context)
                     path_rel_to_root = '/' + path[len(root):]
-                    self._embryo_name_path2embryos[embryo_name, path_rel_to_root].append(embryo)
+                    self._embryo_name_path2embryos[
+                        embryo_name, path_rel_to_root
+                    ].append(embryo)
                     self._embryo_name2embryos[embryo_name].append(embryo)
                     self._path2embryos[path_rel_to_root].append(embryo)
 
@@ -309,7 +323,7 @@ class DotFileManager(object):
             return self._embryo_name_path2embryos[name, path]
         else:
             return []
-                 
+
     def _load_context_json(self, dir_path: str) -> Dict:
         """
         Read in a context.json file to a dict.
@@ -331,7 +345,8 @@ class DotFileManager(object):
         from a context.json file.
         """
         embryo_name = context['embryo']['name']
-        embryo_path = resolve_embryo_path(self._embryo_search_path, embryo_name)
+        embryo_path = resolve_embryo_path(
+            self._embryo_search_path, embryo_name
+        )
         embryo = import_embryo(embryo_path, context, True)
         return embryo
-

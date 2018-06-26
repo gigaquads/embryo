@@ -3,6 +3,7 @@
 # vim: set filetype=python
 
 from appyratus.util.argz import Prog, Subparser, Arg
+from appyratus.util.dict_utils import unflatten_keys
 
 from embryo import Loader
 
@@ -32,12 +33,6 @@ class EmbryoCreateSubparser(Subparser):
         help=
         "Destination path to the directory where the embryo should be generated."
     )
-    name_arg = Arg(
-        flags=('-n', '--name'),
-        type=str,
-        default='',
-        help="The name of the project you're creating."
-    )
     context_arg = Arg(
         flags=('-c', '--context'),
         help="Path to a context .json or .yml file.",
@@ -59,7 +54,7 @@ class EmbryoProg(Prog):
 
         return dict(
             name=cli_kwargs['embryo'],
-            context=cli_kwargs,
+            context=unflatten_keys(cli_kwargs),
         )
 
     def create(self):

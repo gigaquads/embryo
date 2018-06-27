@@ -3,7 +3,7 @@
 # vim: set filetype=python
 
 from appyratus.util.argz import Prog, Subparser, Arg
-from appyratus.util.dict_utils import unflatten_keys
+from appyratus.util import DictUtils
 
 from embryo import Loader
 
@@ -54,7 +54,7 @@ class EmbryoProg(Prog):
 
         return dict(
             name=cli_kwargs['embryo'],
-            context=unflatten_keys(cli_kwargs),
+            context=DictUtils.unflatten_keys(cli_kwargs),
         )
 
     def create(self):

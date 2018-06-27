@@ -42,10 +42,11 @@ class Project(object):
         self.template_meta = {}
         self.nested_embryos = []
         self.dot_embryo_path = os.path.join(self.root, '.embryo')
-
         self.embryo = embryo
-        self.templates = self._build_jinja2_templates(embryo.templates)
-        self.tree = self._analyze_tree(embryo.tree)
+
+        # these are initialized in the build method:
+        self.tree = None
+        self.templates = None
 
     def _build_jinja2_templates(self, templates):
         """
@@ -170,10 +171,13 @@ class Project(object):
         say('Embryo Location: {path}', path=self.embryo.path)
         say('Destination directory: {dest}', dest=self.embryo.destination)
 
-        # create the project file structure
-        self.touch()
-
         self.embryo.apply_on_create(self)
+
+        # create the project file structure
+        self.templates = self._build_jinja2_templates(self.embryo.templates)
+        self.tree = self._analyze_tree(self.embryo.tree)
+
+        self.touch()
 
         # insert context into .embryo/context.json file
         self._persist_context()
@@ -287,8 +291,9 @@ class Project(object):
                 os.makedirs(path)
         for fpath in self.fpaths:
             path = join(self.root, './{}'.format(fpath))
-            say('Touching file: {path}', path=fpath)
-            open(path, 'a').close()
+            if not os.path.isfile(fpath):
+                say('Touching file: {path}', path=fpath)
+                open(path, 'a').close()
 
     def render(
         self,

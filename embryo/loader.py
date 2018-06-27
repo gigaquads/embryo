@@ -46,6 +46,11 @@ class Loader(object):
         - `context`: Context data to merge into other sources.
         """
         self._embryo_path = resolve_embryo_path(self._embryo_search_path, name)
+
+        say('Searching for embryos in...\n\n    - {paths}\n',
+            paths='\n    - '.join(self._embryo_search_path)
+        )
+
         self._embryo = import_embryo(self._embryo_path, context)
 
     def build(self) -> List[Project]:
@@ -114,6 +119,8 @@ class Loader(object):
             # project as its own context, if specified.
             ctx_path = item.get('context_path')
             ctx_obj = get_nested_dict(self._embryo.context, ctx_path)
+
+            say('Loading nested embryo: {name}...', name=item['embryo_name'])
 
             loader = Loader()
             loader.load(

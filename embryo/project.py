@@ -41,6 +41,7 @@ class Project(object):
         self.directory_paths = set()
         self.template_meta = {}
         self.nested_embryos = []
+        self.dot_embryo_path = os.path.join(self.root, '.embryo')
 
         self.embryo = embryo
         self.templates = self._build_jinja2_templates(embryo.templates)
@@ -118,31 +119,39 @@ class Project(object):
                 else:
                     # call _analyze_tree on subdirectory
                     child_path = join(parent_path, k)
+                    if child_path == '.embryo':
+                        self.dot_embryo_path = child_path
                     result[k] = self._analyze_tree(obj[k], child_path)
                     self.directory_paths.add(child_path)
             elif obj.endswith('/'):
                 # it's an empty directory name
                 dir_name = obj
-                self.directory_paths.add(join(parent_path, dir_name))
+                dir_path = join(parent_path, dir_name)
+                self.directory_paths.add(dir_path)
                 result[dir_name] = False
+                if dir_name == '.embryo':
+                    self.dot_embryo_path = dir_path
             else:
                 # it's a plain ol' file name
                 fname = obj
                 fpath = join(parent_path, fname)
-                self.fpaths.add(fpath)
-                if fpath in self.templates:
-                    # attempt to resolve the full path
-                    self.template_meta[fpath] = {
-                        'template_name': fpath,
-                        'context_path': None,
-                    }
-                elif fname in self.templates:
-                    # top-level resolution of file name only
-                    self.template_meta[fpath] = {
-                        'template_name': fname,
-                        'context_path': None,
-                    }
-                result[fname] = True
+                if fname == '.embryo':
+                    self.dot_embryo_path = fpath
+                else:
+                    self.fpaths.add(fpath)
+                    if fpath in self.templates:
+                        # attempt to resolve the full path
+                        self.template_meta[fpath] = {
+                            'template_name': fpath,
+                            'context_path': None,
+                        }
+                    elif fname in self.templates:
+                        # top-level resolution of file name only
+                        self.template_meta[fpath] = {
+                            'template_name': fname,
+                            'context_path': None,
+                        }
+                    result[fname] = True
 
         return result
 
@@ -222,14 +231,16 @@ class Project(object):
         Appnd the context dict to the .embryo/context.json object.
         """
         embryo = self.embryo
-        dot_embryo_path = os.path.join(self.root, '.embryo')
+        dot_embryo_path = self.dot_embryo_path
         context_json_path = os.path.join(dot_embryo_path, 'context.json')
         embryo_name_2_contexts = {}
 
         # create or load the .embryo/ dir in the "root" dir
         if not os.path.isdir(dot_embryo_path):
+            say('Creating .embryo directory: {path}', path=dot_embryo_path)
             os.mkdir(dot_embryo_path)
 
+        # load the JSON file
         if os.path.isfile(context_json_path):
             # read in the current data structure
             with open(context_json_path, 'r') as fin:
@@ -239,6 +250,8 @@ class Project(object):
 
         embryo.context['embryo']['timestamp'] = utc_now()
 
+        # adding to the JSON file data by adding it to the list of other
+        # embryos generated here of the same name.
         schema = embryo.context_schema()
         if schema:
             context = schema.dump(embryo.context, strict=True).data
@@ -248,8 +261,9 @@ class Project(object):
         else:
             embryo_name_2_contexts[embryo.name].append(embryo.context)
 
-        # ...and append the current context
+        # write the appended data back to the JSON file
         with open(context_json_path, 'w') as fout:
+            say('Appending {path}', path=context_json_path)
             fout.write(
                 json.dumps(
                     json.loads(
@@ -265,12 +279,15 @@ class Project(object):
         """
         if not os.path.exists(self.root):
             os.makedirs(self.root)
+            say('Creating directory: {path}', path=self.root)
         for dir_path in self.directory_paths:
             path = join(self.root, './{}'.format(dir_path))
             if not os.path.exists(path):
+                say('Creating directory: {path}', path=path)
                 os.makedirs(path)
         for fpath in self.fpaths:
             path = join(self.root, './{}'.format(fpath))
+            say('Touching file: {path}', path=fpath)
             open(path, 'a').close()
 
     def render(

@@ -297,16 +297,24 @@ class DotFileManager(object):
         context entries. This is called by the embryo `apply_on_create` method.
         """
         for path, subpaths, fnames in os.walk(root):
-            embryo_name2context_list = self._load_context_json(path)
+            json_fpath = os.path.join(path, '.embryo/context.json')
+            if os.path.isfile(json_fpath):
+                say('Reading {path}...', path=json_fpath)
+            embryo_name2context_list = self._load_context_json(json_fpath)
             for embryo_name, context_list in embryo_name2context_list.items():
+                count = len(context_list)
+                say('Loading embryo: "{k}" ({n}x)...', k=embryo_name, n=count)
                 for context in context_list:
                     embryo = self._load_embryo(context)
-                    path_rel_to_root = '/' + path[len(root):]
-                    self._embryo_name_path2embryos[
-                        embryo_name, path_rel_to_root
-                    ].append(embryo)
+                    # the `path_key` is is the relative path to the current
+                    # `path` directory, prepended with a '/'
+                    path_key = '/' + path[len(root):]
+
+                    # add the embryo to internal lookup tables:
+                    self._embryo_name_path2embryos[embryo_name, path_key
+                                                   ].append(embryo)
                     self._embryo_name2embryos[embryo_name].append(embryo)
-                    self._path2embryos[path_rel_to_root].append(embryo)
+                    self._path2embryos[path_key].append(embryo)
 
     def find(self, name: str = None, path: str = None) -> List[Embryo]:
         """
@@ -324,11 +332,10 @@ class DotFileManager(object):
         else:
             return []
 
-    def _load_context_json(self, dir_path: str) -> Dict:
+    def _load_context_json(self, context_json_fpath: str) -> Dict:
         """
         Read in a context.json file to a dict.
         """
-        context_json_fpath = os.path.join(dir_path, '.embryo/context.json')
         loaded_json_obj = {}
 
         if os.path.isfile(context_json_fpath):

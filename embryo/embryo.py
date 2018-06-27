@@ -1,6 +1,7 @@
 import os
 import yaml
 import ujson
+import json
 
 from typing import Dict, List
 from collections import defaultdict
@@ -72,8 +73,6 @@ class Embryo(object):
 
     def load(self, context, from_fs=False):
         self.context = self._load_context(context, from_fs)
-        self.tree = self._load_tree(self.context)
-        self.templates = self._load_templates(context)
 
     @property
     def path(self):
@@ -129,34 +128,31 @@ class Embryo(object):
         """
         This method should be called only by Loader objects.
         """
-        say('Running pre-create method...')
-
-        # load/validate context as prepared by the Loader and Project
-        # during the buld process.
-        schema = self.context_schema()
-        if schema:
-            self.context = schema.load(self.context, strict=True).data
-
-        self.pre_create()
-
-        # we re-load the context because it is possible that it has been
-        # modified in-place by pre_create.
-        if schema:
-            # TODO: all we want to do is re-validate here, not reload
-            self.context = schema.load(self.context, strict=True).data
-
-    def apply_on_create(self, project: Project) -> None:
         self.dot.load(self.destination)
 
+        say('Running pre-create method...')
+        self.pre_create()
+
+    def apply_on_create(self, project: Project) -> None:
         say('Running on-create method...')
         self.on_create(project)
 
-        # we re-load the context because it is possible that it has been
-        # modified in-place by pre_create.
+        # here is where we finally call load, following all places where the
+        # running context object could have been dynamically modified.
         schema = self.context_schema()
         if schema:
-            # TODO: all we want to do is re-validate, not reload
-            self.context = schema.load(self.context, strict=True).data
+            result = schema.load(self.context)
+            if result.errors:
+                shout('Failed to load context: {errors}', errors=json.dumps(
+                    result.errors, indent=2, sort_keys=True
+                ))
+                exit(-1)
+            self.context = result.data
+
+        # now that we have the loaded context, dump it to build the tree
+        dumped_context = schema.dump(self.context).data
+        self.tree = self._load_tree(dumped_context)
+        self.templates = self._load_templates(dumped_context)
 
     def apply_post_create(self, project: Project) -> None:
         """
@@ -303,7 +299,7 @@ class DotFileManager(object):
             embryo_name2context_list = self._load_context_json(json_fpath)
             for embryo_name, context_list in embryo_name2context_list.items():
                 count = len(context_list)
-                say('Loading embryo: "{k}" ({n}x)...', k=embryo_name, n=count)
+                say('Loading stored embryo: "{k}" ({n}x)...', k=embryo_name, n=count)
                 for context in context_list:
                     embryo = self._load_embryo(context)
                     # the `path_key` is is the relative path to the current

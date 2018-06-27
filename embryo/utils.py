@@ -38,7 +38,16 @@ def build_embryo_search_path() -> List[str]:
     if EMBRYO_PATH_ENV_VAR_NAME in os.environ:
         raw_path_str = os.environ[EMBRYO_PATH_ENV_VAR_NAME]
         search_path.extend(raw_path_str.split(':'))
-    return search_path
+
+    visited = set()
+    unique_search_path = []
+
+    for k in search_path:
+        if k not in visited:
+            unique_search_path.append(k)
+            visited.add(k)
+
+    return unique_search_path
 
 
 def resolve_embryo_path(search_path: List[str], name: str) -> str:

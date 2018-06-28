@@ -26,7 +26,7 @@ from .utils import (
     shout,
     build_embryo_filepath,
     resolve_embryo_path,
-    import_embryo,
+    import_embryo_class,
     build_embryo_search_path,
 )
 

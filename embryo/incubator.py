@@ -5,6 +5,7 @@ import json
 from typing import Dict, List
 
 from appyratus.json import JsonEncoder
+from appyratus.time import utc_now
 
 from embryo import Project
 
@@ -13,47 +14,61 @@ from .embryo import Embryo
 from .constants import EMBRYO_FILE_NAMES, EMBRYO_PATH_ENV_VAR_NAME
 from .utils import (
     say, shout, build_embryo_filepath, get_nested_dict,
-    import_embryo, resolve_embryo_path, build_embryo_search_path,
+    import_embryo_class, resolve_embryo_path, build_embryo_search_path,
 )
 
-
-class Loader(object):
+# TODO: Rename to Incubator
+class Incubator(object):
     """
-    The duty of the `Loader` is to find and load the `Embryo` object
+    The duty of the `Incubator` is to find and load the `Embryo` object
     from the filesystem and send it into a `Project` to be built. The `Embryo`
     object contains the instructions, as it were, for building the embryo in
     the filesystem; while the `Project` is responsible for the building.
     """
 
-    def __init__(self):
-        self._embryo_search_path = build_embryo_search_path()
-        self._json_encoder = JsonEncoder()
-        self._embryo = None
-        self._embryo_path = None
-
-    def load(
+    def __init__(
         self,
-        name: str,
+        embryo_name: str,
+        destination: str,
         context: Dict = None,
-    ) -> None:
+    ):
         """
         Generate an embryo, along with any embryos nested therein. Returns a
         list of Project objects. The first instance is the embryo being
         generated, and the rest are the nested ones.
 
         # Args
-        - `name`: The name of the embryo.
+        - `embryo_name`: The name of the embryo.
+        - `destination`: Directory to hatch embryo into
         - `context`: Context data to merge into other sources.
         """
-        self._embryo_path = resolve_embryo_path(self._embryo_search_path, name)
+        self._embryo_search_path = build_embryo_search_path()
+        self._json_encoder = JsonEncoder()
+
+        # Add Embryo metadata to context
+        context.update({
+            'embryo': {
+                'name': embryo_name,
+                'destination': os.path.abspath(destination),
+                'timestamp': utc_now(),
+                'action': 'hatch',
+            }
+        })
+
+        # Get the absolute path to the embryo directory
+        self._embryo_path = resolve_embryo_path(
+            self._embryo_search_path, embryo_name
+        )
 
         say('Searching for embryos in...\n\n    - {paths}\n',
             paths='\n    - '.join(self._embryo_search_path)
         )
 
-        self._embryo = import_embryo(self._embryo_path, context)
+        # Import the Embryo class from embryo dir and instantaite it.
+        self._embryo_class = import_embryo_class(self._embryo_path)
+        self._embryo = self._embryo_class(self._embryo_path, context)
 
-    def build(self) -> List[Project]:
+    def hatch(self) -> List[Project]:
         """
 
         $ Returns
@@ -120,15 +135,14 @@ class Loader(object):
             ctx_path = item.get('context_path')
             ctx_obj = get_nested_dict(self._embryo.context, ctx_path)
 
-            say('Loading nested embryo: {name}...', name=item['embryo_name'])
+            say('Hatching nested embryo: {name}...', name=item['embryo_name'])
 
-            loader = Loader()
-            loader.load(
-                name=item['embryo_name'],
-                dest=item['dir_path'],
+            incubator = Incubator(
+                embryo_name=item['embryo_name'],
+                destination=item['dir_path'],
                 context=ctx_obj,
             )
 
-            nested_projects.extend(loader.build())
+            nested_projects.extend(incubator.hatch())
 
         return nested_projects

@@ -12,16 +12,12 @@ from copy import deepcopy
 from jinja2 import Template
 from yapf.yapflib.yapf_api import FormatCode
 from appyratus.types import Yaml
-from appyratus.time import utc_now
 from appyratus.json import JsonEncoder
 
 from .constants import RE_RENDERING_METADATA, STYLE_CONFIG
 from .environment import build_env
 from .exceptions import TemplateNotFound
-from .utils import (
-    say, shout, import_embryo, resolve_embryo_path,
-    build_embryo_search_path,
-)
+from .utils import say, shout
 
 
 class Project(object):
@@ -167,9 +163,9 @@ class Project(object):
         2. Render templates into said files.
         """
         say('Stimulating embryonic growth sequence...')
-        say('Embryo Name: {name}', name=self.embryo.name)
+        say('Hatching Embryo: "{name}"', name=self.embryo.name)
         say('Embryo Location: {path}', path=self.embryo.path)
-        say('Destination directory: {dest}', dest=self.embryo.destination)
+        say('Destination: {dest}', dest=self.embryo.destination)
 
         self.embryo.apply_on_create(self)
 
@@ -187,7 +183,7 @@ class Project(object):
             indent=2, sort_keys=True
         ))
 
-        say('Filesystem Tree:\n\n{tree}', tree='\n'.join(
+        say('Tree:\n\n{tree}', tree='\n'.join(
             ' ' * 4 + line for line in yaml.dump(
                 self.embryo.tree,
                 explicit_start=False,
@@ -251,8 +247,6 @@ class Project(object):
                 json_str = fin.read()
                 if json_str:
                     embryo_name_2_contexts = json.loads(json_str)
-
-        embryo.context['embryo']['timestamp'] = utc_now()
 
         # adding to the JSON file data by adding it to the list of other
         # embryos generated here of the same name.

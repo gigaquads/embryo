@@ -59,6 +59,7 @@ class Embryo(object):
     def __init__(self, path: str, context: Dict):
         self._path = path
         self._context = self._load_context(context)
+        self._schema = self.context_schema()
         self.templates = None
         self.tree = None
 
@@ -166,11 +167,21 @@ class Embryo(object):
             self._context = result.data
 
         # now that we have the loaded context, dump it to build the tree
-        dumped_context = schema.dump(self.context).data
-        dumped_context.update(self._related)
+        dumped_context = self.dump()
 
         self.tree = self._load_tree(dumped_context)
         self.templates = self._load_templates(dumped_context)
+
+    def dump(self):
+        """
+        Dump schema to context and update with related attributes
+
+        XXX Currently `dump` is called twice when creating an embryo.. this can
+        be optimized at some point with that in consideration.
+        """
+        dumped_context = self._schema.dump(self.context).data
+        dumped_context.update(self._related)
+        return dumped_context
 
     def apply_post_create(self, project: Project) -> None:
         """

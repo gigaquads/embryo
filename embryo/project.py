@@ -197,7 +197,7 @@ class Project(object):
         # and post-create methods, we want the "dumped" context in the
         # templates.
         schema = self.embryo.context_schema()
-        dumped_context = schema.dump(self.embryo.context).data
+        dumped_context = self.embryo.dump()
 
         for fpath in self.fpaths:
             meta = self.template_meta.get(fpath)

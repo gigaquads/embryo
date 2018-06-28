@@ -3,8 +3,10 @@
 # vim: set filetype=python
 
 from appyratus.util.argz import Prog, Subparser, Arg
+from appyratus.util import DictUtils
+from appyratus.types import Yaml
 
-from embryo import Loader
+from embryo import Incubator
 
 
 PROG = dict(
@@ -23,49 +25,81 @@ class EmbryoCreateSubparser(Subparser):
     embryo_arg = Arg(
         flags=('embryo', ),
         type=str,
-        help="The name of the embryo for embryonic generation."
+        help="Name of the embryo to hatch."
     )
     dest_arg = Arg(
-        flags=('-d', '--dest'),
+        flags=('-d', '--destination'),
         type=str,
-        default='./',
+        default='.',
         help=
-        "Destination path to the directory where the embryo should be generated."
-    )
-    name_arg = Arg(
-        flags=('-n', '--name'),
-        type=str,
-        default='',
-        help="The name of the project you're creating."
+        "Destination directory."
     )
     context_arg = Arg(
         flags=('-c', '--context'),
-        help="Path to a context .json or .yml file.",
+        help="Path to a json/yaml context file or an inline JSON object.",
     )
 
 
 class EmbryoProg(Prog):
     create_subparser = EmbryoCreateSubparser()
 
-    def parse_generator_kwargs(self):
+    def load_context_arg(self):
         """
-        Generate en embryo using command line (CLI) arguments as the initial
-        context dict (before the context.yml/json file is merged in, etc.)
+        This loads the --context arg into a dict and returns it.
         """
-        cli_kwargs = {  # command-line (CLI) kwargs
-            k: getattr(self.args, k)
-            for k in dir(self.args) if not k.startswith('_')
+        def has_ext(filename, extensions):
+            return any(
+                filename.lower().endswith('.' + ext.lower())
+                for ext in extensions
+            )
+
+        context = {}
+
+        if self.args.context:
+            context_str = self.args.context
+            if has_ext(context_str, ['json']):
+                with open(context_filepath) as context_file:
+                    context = ujson.load(context_file)
+            elif has_ext(context_str, ['yml', 'yaml']):
+                context = Yaml.from_file(context_filepath)
+            else:
+                # assume it's a JSON object string
+                context = ujson.loads(context_str)
+
+        return context
+
+    def load_context(self):
+        """
+        Here, we convert the commandline arguments into a dict and merge it
+        together with the dict loaded from the --context argument. The return
+        value of this function is the context object passed into the loader.
+        """
+        non_context_arg_names = {
+            'action', 'context', 'destination', 'embryo'
         }
 
-        return dict(
-            name=cli_kwargs['embryo'],
-            context=cli_kwargs,
-        )
+        data_from_cli_kwargs = {
+            k: getattr(self.args, k)
+            for k in dir(self.args)
+            if not ((k in non_context_arg_names) or k.startswith('_'))
+        }
+
+        data_from_context_arg = self.load_context_arg()
+
+        context = {}
+        context.update(data_from_cli_kwargs)
+        context.update(data_from_context_arg)
+        context = DictUtils.unflatten_keys(context)
+
+        return context
 
     def create(self):
-        loader = Loader()
-        loader.load(**self.parse_generator_kwargs())
-        return loader.build()
+        incubator = Incubator(
+            embryo_name=self.args.embryo,
+            destination=self.args.destination,
+            context=self.load_context(),
+        )
+        return incubator.hatch()
 
 
 def main():

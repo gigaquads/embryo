@@ -81,7 +81,7 @@ def get_nested_dict(root: Dict, dotted_path: str) -> Dict:
     return d
 
 
-def import_embryo(embryo_path: str, context: Dict, from_fs=False) -> 'Embryo':
+def import_embryo_class(embryo_path: str) -> 'Embryo':
     """
     The actual embryo is a Python object that contains various functions
     related to the generation of the project, like pre- and post-create
@@ -89,8 +89,10 @@ def import_embryo(embryo_path: str, context: Dict, from_fs=False) -> 'Embryo':
     """
     from embryo.embryo import Embryo
 
+    # absolute file path to the embryo directory
     abs_filepath = build_embryo_filepath(embryo_path, 'embryo')
-    embryo = None
+
+    embryo_class = None   # <- return value
 
     if os.path.isfile(abs_filepath):
         # imprt the embryo.py module
@@ -102,15 +104,6 @@ def import_embryo(embryo_path: str, context: Dict, from_fs=False) -> 'Embryo':
         for _, klass in inspect.getmembers(module, inspect.isclass):
             if issubclass(klass, Embryo) and klass is not Embryo:
                 embryo_class = klass
-                embryo = klass(embryo_path)
                 break
 
-    if embryo is None:
-        # In this case, just use the base class
-        embryo = Embryo(embryo_path)
-
-    # This computes the final context object and loads the templates
-    # and filesystem tree....
-    embryo.load(context, from_fs)
-
-    return embryo
+    return (embryo_class or Embryo)

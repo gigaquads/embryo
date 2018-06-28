@@ -19,7 +19,7 @@ from .exceptions import TemplateLoadFailed
 from .constants import EMBRYO_FILE_NAMES
 from .utils import (
     say, shout, build_embryo_filepath, resolve_embryo_path,
-    import_embryo, build_embryo_search_path,
+    import_embryo_class, build_embryo_search_path,
 )
 
 
@@ -41,15 +41,14 @@ class ContextSchema(Schema):
 class Embryo(object):
     """
     Embryo objects serve as an interface to performing various actions within
-    the context of running the Loader.
+    the context of running the Incubator.
     """
 
-    def __init__(self, path):
+    def __init__(self, path: str, context: Dict):
         self._path = path
-
-        self.context = None
-        self.tree = None
+        self._context = self._load_context(context)
         self.templates = None
+        self.tree = None
 
         # the jinja2 env is used in rendering filepath template strings
         # as well as the templatized tree.yml file.
@@ -65,8 +64,9 @@ class Embryo(object):
             embryo_path=self._path,
         )
 
-    def load(self, context, from_fs=False):
-        self.context = self._load_context(context, from_fs)
+    @property
+    def context(self):
+        return self._context
 
     @property
     def path(self):
@@ -79,10 +79,6 @@ class Embryo(object):
     @property
     def destination(self):
         return self.context['embryo']['destination']
-
-    @property
-    def action(self):
-        return self.context['embryo']['action']
 
     @property
     def timestamp(self):
@@ -120,7 +116,7 @@ class Embryo(object):
 
     def apply_pre_create(self) -> None:
         """
-        This method should be called only by Loader objects.
+        This method should be called only by Incubator objects.
         """
         self.dot.load(self.destination)
 
@@ -141,7 +137,7 @@ class Embryo(object):
                     result.errors, indent=2, sort_keys=True
                 ))
                 exit(-1)
-            self.context = result.data
+            self._context = result.data
 
         # now that we have the loaded context, dump it to build the tree
         dumped_context = schema.dump(self.context).data
@@ -150,12 +146,12 @@ class Embryo(object):
 
     def apply_post_create(self, project: Project) -> None:
         """
-        This method should be called only by Loader objects.
+        This method should be called only by Incubator objects.
         """
         say('Running post-create method...')
         self.post_create(project)
 
-    def _load_context(self, cli_kwargs: Dict = None, from_fs=False) -> Dict:
+    def _load_context(self, context: Dict = None) -> Dict:
         """
         Context can come from three places and is merged into a computed dict
         in the following order:
@@ -166,39 +162,15 @@ class Embryo(object):
         """
         path = self._path
         fpath = build_embryo_filepath(path, 'context')
-        context = Yaml.from_file(fpath) or {}
 
-        # if a --context PATH_TO_JSON_FILE was provided on the CLI then try to
-        # load that file and merge it into the existing context dict.
-        cli_context_value = cli_kwargs.pop('context', None)
-        if cli_context_value:
-            if cli_context_value.endswith('.json'):
-                with open(context_filepath) as context_file:
-                    cli_context = json.load(context_file)
-            elif cli_context_value.endswith('.yml'):
-                cli_context = Yaml.from_file(context_filepath)
-            else:
-                # assume it's a JSON object string
-                cli_context = json.loads(cli_context_value)
+        dynamic_context = context
+        static_context = Yaml.from_file(fpath) or {}
 
-            context.update(cli_context)
+        merged_context = {}
+        merged_context.update(static_context)
+        merged_context.update(dynamic_context)
 
-        # we collect params used by Embryo creation into a separate "embryo"
-        # subobject and add it to the context dict with setdefault so as not to
-        # overwrite any user defined variable by the same name, "embryo":
-        if not from_fs:
-            context.setdefault('embryo', {
-                'name': cli_kwargs.pop('embryo'),
-                'path': path,
-                'destination': os.path.abspath(cli_kwargs.pop('dest')),
-                'action': cli_kwargs.pop('action'),
-            })
-
-        # Note that the remaining CLI kwargs should be custom context
-        # variables, not Embryo creation parameters. We add these vars here.
-        context.update(cli_kwargs)
-
-        return context
+        return merged_context
 
     def _load_templates(self, context: Dict):
         """
@@ -269,8 +241,8 @@ class DotFileManager(object):
     """
     def __init__(self):
         self._embryo_search_path = build_embryo_search_path()
-        self._embryo_name_path2embryos = defaultdict(list)
-        self._embryo_name2embryos = defaultdict(list)
+        self._named_path2embryos = defaultdict(list)
+        self._name2embryos = defaultdict(list)
         self._path2embryos = defaultdict(list)
 
     def load(self, root: str) -> None:
@@ -287,7 +259,10 @@ class DotFileManager(object):
             embryo_name2context_list = self._load_context_json(json_fpath)
             for embryo_name, context_list in embryo_name2context_list.items():
                 count = len(context_list)
-                say('Loading stored embryo: "{k}" ({n}x)...', k=embryo_name, n=count)
+                say('Importing embryo: "{name}" - {count}x...',
+                    name=embryo_name,
+                    count=count
+                )
                 for context in context_list:
                     embryo = self._load_embryo(context)
 
@@ -295,9 +270,12 @@ class DotFileManager(object):
                     # `path` directory, prepended with a '/'
                     path_key = '/' + path[len(root):]
 
+                    # this is the key for the named_path lookup table:
+                    named_path = (embryo_name, path_key)
+
                     # add the embryo to internal lookup tables:
-                    self._embryo_name_path2embryos[embryo_name, path_key].append(embryo)
-                    self._embryo_name2embryos[embryo_name].append(embryo)
+                    self._named_path2embryos[named_path].append(embryo)
+                    self._name2embryos[embryo_name].append(embryo)
                     self._path2embryos[path_key].append(embryo)
 
     def find(self, name: str = None, path: str = None) -> List[Embryo]:
@@ -308,14 +286,14 @@ class DotFileManager(object):
         Embryos with the given name within the given directory path.
         """
         if name and (not path):
-            return self._embryo_name2embryos[name]
+            return self._name2embryos[name]
         elif (not name) and path:
             return self._path2embryos[path]
         elif name and path:
-            return self._embryo_name_path2embryos[name, path]
+            return self._named_path2embryos[name, path]
         else:
             return []
-                 
+
     def _load_context_json(self, context_json_fpath: str) -> Dict:
         """
         Read in a context.json file to a dict.
@@ -335,8 +313,8 @@ class DotFileManager(object):
         Import and instantiate an Embryo object using a context dict loaded
         from a context.json file.
         """
-        embryo_name = context['embryo']['name']
-        embryo_path = resolve_embryo_path(self._embryo_search_path, embryo_name)
-        embryo = import_embryo(embryo_path, context, True)
+        name = context['embryo']['name']
+        embryo_path = resolve_embryo_path(self._embryo_search_path, name)
+        embryo_class = import_embryo_class(embryo_path)
+        embryo = embryo_class(embryo_path, context)
         return embryo
-

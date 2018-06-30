@@ -36,11 +36,11 @@ class DotFileManager(object):
         for path, subpaths, fnames in os.walk(root):
             json_fpath = os.path.join(path, '.embryo/context.json')
             if os.path.isfile(json_fpath):
-                say('Reading {path}...', path=json_fpath)
+                say('Loading embryos from {path}...', path=json_fpath)
             embryo_name2context_list = self._load_context_json(json_fpath)
             for embryo_name, context_list in embryo_name2context_list.items():
                 count = len(context_list)
-                say('Importing embryo: "{name}" - {count}x...',
+                say('Loading embryo: "{name}" ({count}x)...',
                     name=embryo_name,
                     count=count
                 )

@@ -20,6 +20,7 @@ from .environment import build_env
 from .exceptions import TemplateLoadFailed
 from .constants import EMBRYO_FILE_NAMES
 from .relationship import Relationship, RelationshipManager
+from .file_manager import FileTypeAdapter, JsonAdapter, FileManager
 from .dot import DotFileManager
 from .utils import (
     say,
@@ -75,11 +76,19 @@ class Embryo(object):
         # This dict is initialized by a RelationshipManager in pre_create.
         self._related = {}
 
+        self._fs = FileManager()
+
     def __repr__(self):
         return '<{class_name}({embryo_path})>'.format(
             class_name=self.__class__.__name__,
             embryo_path=self._path,
         )
+
+    @property
+    def adapters(self) -> List[FileTypeAdapter]:
+        return [
+            JsonAdapter(indent=2, sort_keys=True),
+        ]
 
     @property
     def related(self):
@@ -88,6 +97,10 @@ class Embryo(object):
     @property
     def context(self):
         return self._context
+
+    @property
+    def fs(self):
+        return self._fs
 
     @property
     def path(self):
@@ -150,9 +163,6 @@ class Embryo(object):
         self.pre_create()
 
     def apply_on_create(self, project: Project) -> None:
-        say('Running on-create method...')
-        self.on_create(project)
-
         # Here is where we finally call load, following all places where the
         # running context object could have been dynamically modified.
         schema = self.context_schema()
@@ -172,12 +182,14 @@ class Embryo(object):
         self.tree = self._load_tree(dumped_context)
         self.templates = self._load_templates(dumped_context)
 
+        self._fs.read(self)
+
+        say('Running on-create method...')
+        self.on_create(project)
+
     def dump(self):
         """
         Dump schema to context and update with related attributes
-
-        XXX Currently `dump` is called twice when creating an embryo.. this can
-        be optimized at some point with that in consideration.
         """
         dumped_context = self._schema.dump(self.context).data
         dumped_context.update(self._related)
@@ -187,6 +199,8 @@ class Embryo(object):
         """
         This method should be called only by Incubator objects.
         """
+        self._fs.write()
+
         say('Running post-create method...')
         self.post_create(project)
 

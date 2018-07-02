@@ -3,6 +3,7 @@ import json
 import ujson
 
 from appyratus.json import JsonEncoder
+from appyratus.io import Yaml
 
 from .utils import say
 
@@ -47,6 +48,21 @@ class JsonAdapter(FileTypeAdapter):
             json_file.write(json_str)
 
 
+class YamlAdapter(FileTypeAdapter):
+    def __init__(self, multi=False):
+        self._multi = multi
+
+    @property
+    def extensions(self) -> set:
+        return {'yml', 'yaml'}
+
+    def read(self, abs_file_path: str) -> dict:
+        return Yaml.from_file(file_path=abs_file_path, multi=self._multi)
+
+    def write(self, abs_file_path: str, file_obj: dict) -> None:
+        Yaml.to_file(file_path=abs_file_path, data=file_obj, multi=self._multi)
+
+
 class FileMetadata(object):
     def __init__(self, file_obj, adapter):
         self.file_obj = file_obj
@@ -78,18 +94,20 @@ class FileManager(object):
             for ext in adapter.extensions:
                 self._ext2adapter[ext.lower()] = adapter
 
-        def read_recursive(node: dict):
+        def read_recursive(node: dict, path_key: str):
+            if isinstance(node, str):
+                abs_file_path = os.path.join(path_key, node)
+                self._read_file(abs_file_path)
+                return
+
             for parent_key, children in node.items():
                 for item in children:
+                    child_path_key = os.path.join(path_key, parent_key)
                     if isinstance(item, dict):
-                        read_recursive(item)
-                    else:
-                        rel_file_path = os.path.join(parent_key, item)
-                        abs_file_path = os.path.join(self._root, rel_file_path)
-                        self._read_file(abs_file_path)
+                        read_recursive(item, child_path_key)
 
         for item in tree:
-            read_recursive(item)
+            read_recursive(item, self._root)
 
     def write(self):
         """

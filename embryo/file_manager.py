@@ -101,6 +101,8 @@ class FileManager(object):
                 return
 
             for parent_key, children in node.items():
+                if not children:
+                    continue
                 for item in children:
                     child_path_key = os.path.join(path_key, parent_key)
                     if isinstance(item, dict):

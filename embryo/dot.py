@@ -1,9 +1,12 @@
 import os
 
+import json
 import ujson
 
 from typing import Dict, List
 from collections import defaultdict
+
+from appyratus.json import JsonEncoder
 
 from .utils import (
     say, shout, resolve_embryo_path,
@@ -19,6 +22,7 @@ class DotFileManager(object):
     whose context data was discovered in .embryo/context.json files.
     """
     def __init__(self):
+        self._json_encoder = JsonEncoder()
         self._embryo_search_path = build_embryo_search_path()
         self._named_path2embryos = defaultdict(list)
         self._name2embryos = defaultdict(list)
@@ -31,6 +35,7 @@ class DotFileManager(object):
         and instantiates the Python Embryo objects corresponding to the persist
         context entries. This is called by the embryo `apply_on_create` method.
         """
+
         root = embryo.destination
 
         for path, subpaths, fnames in os.walk(root):
@@ -75,6 +80,46 @@ class DotFileManager(object):
         else:
             return []
 
+    def persist(self, embryo: 'Embryo') -> None:
+        dot_embryo_path = self._resolve_dot_dir(embryo)
+        context_json_path = os.path.join(dot_embryo_path, 'context.json')
+        embryo_name_2_contexts = {}
+
+        # create or load the .embryo/ dir in the "root" dir
+        if not os.path.isdir(dot_embryo_path):
+            say('Creating .embryo directory: {path}', path=dot_embryo_path)
+            os.mkdir(dot_embryo_path)
+
+        # load the JSON file
+        if os.path.isfile(context_json_path):
+            # read in the current data structure
+            with open(context_json_path, 'r') as fin:
+                json_str = fin.read()
+                if json_str:
+                    embryo_name_2_contexts = ujson.loads(json_str)
+
+        # adding to the JSON file data by adding it to the list of other
+        # embryos generated here of the same name.
+        schema = embryo.context_schema()
+        if schema:
+            context = schema.dump(embryo.context, strict=True).data
+
+        if embryo.name not in embryo_name_2_contexts:
+            embryo_name_2_contexts[embryo.name] = [embryo.context]
+        else:
+            embryo_name_2_contexts[embryo.name].append(embryo.context)
+
+        # write the appended data back to the JSON file
+        with open(context_json_path, 'w') as fout:
+            say('Saving context to {path}', path=context_json_path)
+            fout.write(
+                json.dumps(
+                    json.loads(
+                        self._json_encoder.encode(embryo_name_2_contexts)
+                    ), indent=2, sort_keys=True
+                ) + '\n'
+            )
+
     def _load_context_json(self, context_json_fpath: str) -> Dict:
         """
         Read in a context.json file to a dict.
@@ -99,3 +144,29 @@ class DotFileManager(object):
         embryo_class = import_embryo_class(embryo_path)
         embryo = embryo_class(embryo_path, context)
         return embryo
+
+    def _resolve_dot_dir(self, embryo):
+        def is_dot_dir(path):
+            return path.endswith('.embryo')
+
+        def analyze_node(node, parent_path: str = ''):
+            if isinstance(node, str):
+                path = os.path.join(parent_path, node)
+                if is_dot_dir(path):
+                    return os.path.join(embryo.destination, path)
+            else:
+                node_name = list(node.keys())[0]
+                parent_path = os.path.join(parent_path, node_name)
+                for children in node.values():
+                    for child_node in children:
+                        dot_dir = analyze_node(child_node, parent_path)
+                        if dot_dir:
+                            return dot_dir
+            return None
+
+        for node in embryo.tree:
+            dot_dir = analyze_node(node)
+            if dot_dir:
+                return dot_dir
+
+        return os.path.join(embryo.destination, '.embryo')

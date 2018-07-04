@@ -157,8 +157,19 @@ class Embryo(object):
         self.pre_create()
 
     def build(self) -> None:
-        # Here is where we finally call load, following all places where the
-        # running context object could have been dynamically modified.
+        self._validate_context()
+
+        dumped_context = self.dump()
+
+        self.tree = self._load_tree(dumped_context)
+        self.templates = self._load_templates(dumped_context)
+
+        self._fs.read(self)
+
+    def persist(self):
+        self.dot.persist(self)
+
+    def _validate_context(self):
         schema = self.context_schema()
         if schema:
             result = schema.load(self.context)
@@ -169,14 +180,6 @@ class Embryo(object):
                 )
                 exit(-1)
             self._context = result.data
-
-        # now that we have the loaded context, dump it to build the tree
-        dumped_context = self.dump()
-
-        self.tree = self._load_tree(dumped_context)
-        self.templates = self._load_templates(dumped_context)
-
-        self._fs.read(self)
 
     def dump(self):
         """
@@ -276,4 +279,5 @@ class Embryo(object):
         with open(fpath) as tree_file:
             tree_yml_tpl = tree_file.read()
             tree_yml = self.jinja_env.from_string(tree_yml_tpl).render(context)
-            return yaml.load(tree_yml)
+            tree = yaml.load(tree_yml)
+            return tree

@@ -38,7 +38,6 @@ class Renderer(object):
         self.directory_paths = set()
         self.template_meta = {}
         self.nested_embryos = []
-        self.dot_embryo_path = os.path.join(self.root, '.embryo')
 
         # these are initialized in the build method:
         self.tree = None
@@ -73,7 +72,7 @@ class Renderer(object):
 
         self._touch_filesystem()
         self._render_files(style_config)
-        self._persist_context()
+        self._embryo.persist()
 
     def _build_jinja2_templates(self):
         """
@@ -149,8 +148,6 @@ class Renderer(object):
                 else:
                     # call _analyze_tree on subdirectory
                     child_path = join(parent_path, k)
-                    if child_path == '.embryo':
-                        self.dot_embryo_path = child_path
                     self._analyze_tree(obj[k], child_path)
                     self.directory_paths.add(child_path)
             elif obj.endswith('/'):
@@ -158,28 +155,23 @@ class Renderer(object):
                 dir_name = obj
                 dir_path = join(parent_path, dir_name)
                 self.directory_paths.add(dir_path)
-                if dir_name == '.embryo':
-                    self.dot_embryo_path = dir_path
             else:
                 # it's a plain ol' file name
                 fname = obj
                 fpath = join(parent_path, fname)
-                if fname == '.embryo':
-                    self.dot_embryo_path = fpath
-                else:
-                    self.fpaths.add(fpath)
-                    if fpath in self._jinja2_templates:
-                        # attempt to resolve the full path
-                        self.template_meta[fpath] = {
-                            'template_name': fpath,
-                            'context_path': None,
-                        }
-                    elif fname in self._jinja2_templates:
-                        # top-level resolution of file name only
-                        self.template_meta[fpath] = {
-                            'template_name': fname,
-                            'context_path': None,
-                        }
+                self.fpaths.add(fpath)
+                if fpath in self._jinja2_templates:
+                    # attempt to resolve the full path
+                    self.template_meta[fpath] = {
+                        'template_name': fpath,
+                        'context_path': None,
+                    }
+                elif fname in self._jinja2_templates:
+                    # top-level resolution of file name only
+                    self.template_meta[fpath] = {
+                        'template_name': fname,
+                        'context_path': None,
+                    }
 
     def _render_files(self, style_config):
         # Note that while we want the "loaded" context object in the pre, on,
@@ -214,52 +206,6 @@ class Renderer(object):
 
         return self.nested_embryos
 
-    def _persist_context(self) -> None:
-        """
-        Appnd the context dict to the .embryo/context.json object.
-        """
-        # TODO: Move this method into the DotFileManager
-
-        embryo = self._embryo
-        dot_embryo_path = self.dot_embryo_path
-        context_json_path = os.path.join(dot_embryo_path, 'context.json')
-        embryo_name_2_contexts = {}
-
-        # create or load the .embryo/ dir in the "root" dir
-        if not os.path.isdir(dot_embryo_path):
-            say('Creating .embryo directory: {path}', path=dot_embryo_path)
-            os.mkdir(dot_embryo_path)
-
-        # load the JSON file
-        if os.path.isfile(context_json_path):
-            # read in the current data structure
-            with open(context_json_path, 'r') as fin:
-                json_str = fin.read()
-                if json_str:
-                    embryo_name_2_contexts = json.loads(json_str)
-
-        # adding to the JSON file data by adding it to the list of other
-        # embryos generated here of the same name.
-        schema = embryo.context_schema()
-        if schema:
-            context = schema.dump(embryo.context, strict=True).data
-
-        if embryo.name not in embryo_name_2_contexts:
-            embryo_name_2_contexts[embryo.name] = [embryo.context]
-        else:
-            embryo_name_2_contexts[embryo.name].append(embryo.context)
-
-        # write the appended data back to the JSON file
-        with open(context_json_path, 'w') as fout:
-            say('Appending {path}', path=context_json_path)
-            fout.write(
-                json.dumps(
-                    json.loads(
-                        self._json_encoder.encode(embryo_name_2_contexts)
-                    ), indent=2, sort_keys=True
-                ) + '\n'
-            )
-
     def _touch_filesystem(self) -> None:
         """
         Creates files and directories in the file system. This will not
@@ -275,8 +221,8 @@ class Renderer(object):
                 say('Creating directory: {path}', path=path)
                 os.makedirs(path)
         for fpath in self.fpaths:
-            path = join(self.root, './{}'.format(fpath))
-            if not os.path.isfile(fpath):
+            path = join(self.root, fpath)
+            if not os.path.isfile(fpath) and not fpath.endswith('.embryo'):
                 say('Touching file: {path}', path=fpath)
                 open(path, 'a').close()
 

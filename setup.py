@@ -48,7 +48,7 @@ if __name__ == '__main__':
     setup(
         name='Embryo',
         version='1.0',
-        description='Embryo Project Scaffold Engine',
+        description='Embryo Renderer Scaffold Engine',
         long_description=readme,
         install_requires=requirements,
         scripts=scripts,

@@ -26,7 +26,7 @@ class DotFileManager(object):
 
     def load(self, embryo: 'Embryo') -> None:
         """
-        To be run *after* the project is built. This loads all context.json
+        To be run *after* the renderer is built. This loads all context.json
         files found in the filesystem, relative to a root directory. It imports
         and instantiates the Python Embryo objects corresponding to the persist
         context entries. This is called by the embryo `apply_on_create` method.

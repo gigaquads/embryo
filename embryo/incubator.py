@@ -7,7 +7,7 @@ from typing import Dict, List
 from appyratus.json import JsonEncoder
 from appyratus.time import utc_now
 
-from embryo import Project
+from embryo import Renderer
 
 from .exceptions import EmbryoNotFound
 from .embryo import Embryo
@@ -17,13 +17,13 @@ from .utils import (
     import_embryo_class, resolve_embryo_path, build_embryo_search_path,
 )
 
-# TODO: Rename to Incubator
+
 class Incubator(object):
     """
     The duty of the `Incubator` is to find and load the `Embryo` object
-    from the filesystem and send it into a `Project` to be built. The `Embryo`
+    from the filesystem and send it into a `Renderer` to be built. The `Embryo`
     object contains the instructions, as it were, for building the embryo in
-    the filesystem; while the `Project` is responsible for the building.
+    the filesystem; while the `Renderer` is responsible for the building.
     """
 
     def __init__(
@@ -34,7 +34,7 @@ class Incubator(object):
     ):
         """
         Generate an embryo, along with any embryos nested therein. Returns a
-        list of Project objects. The first instance is the embryo being
+        list of Renderer objects. The first instance is the embryo being
         generated, and the rest are the nested ones.
 
         # Args
@@ -68,25 +68,15 @@ class Incubator(object):
         self._embryo_class = import_embryo_class(self._embryo_path)
         self._embryo = self._embryo_class(self._embryo_path, context)
 
-    def hatch(self) -> List[Project]:
+    def hatch(self) -> None:
         """
-
-        $ Returns
-        A list of Project objects, where the first element is the embryo being
-        loaded, followed by nested projects in breadth-first order.
+        # Returns
+        A list of Renderer objects, where the first element is the embryo being
+        loaded, followed by nested renderers in breadth-first order.
         """
-        # run custom pre-create logic before project is built.
         self._embryo.apply_pre_create()
-
-        # finally, build this project first, followed by any nested embryos. We
-        # run the post-create logic after all nested projects have been built
-        # so that we have known and fixed state at that point
-        projects = self._build_project()
-
-        # run any custom post-create logic that follows project creation
-        self._embryo.apply_post_create(projects[0])
-
-        return projects
+        self._render_embryo()
+        self._embryo.apply_post_create()
 
     def _resolve_embryo_path(self, name: str) -> str:
         """
@@ -107,31 +97,33 @@ class Incubator(object):
 
         raise EmbryoNotFound(name)
 
-    def _build_project(self) -> Project:
+    def _render_embryo(self):
         """
         This takes all the prepared data structures and uses them to create a
-        Project and build it. The build project is returned.
+        Renderer and build it. The build renderer is returned.
         """
-        parent_project = Project(self._embryo)
-        parent_project.build()
+        say('Stimulating embryonic growth sequence...')
+        say('Hatching Embryo: "{name}"', name=self._embryo.name)
+        say('Embryo Location: {path}', path=self._embryo.path)
+        say('Destination: {dest}', dest=self._embryo.destination)
 
-        child_projects = self._build_nested(parent_project)
+        self._embryo.build()
 
-        projects = [parent_project]
-        projects.extend(child_projects)
+        renderer = Renderer(self._embryo)
+        renderer.render()
 
-        return projects
+        self._renderer_nested_embryos(renderer)
 
-    def _build_nested(self, project) -> List[Project]:
+    def _renderer_nested_embryos(self, renderer) -> None:
         """
         All nested embryos declared in the embryo tree are built here,
-        recursively. The list of Projects is returned.
+        recursively. The list of Renderers is returned.
         """
-        nested_projects = []
+        nested_renderers = []
 
-        for item in project.nested_embryos:
+        for item in renderer.nested_embryos:
             # extract the nested context sub-dict to pass into the nested
-            # project as its own context, if specified.
+            # renderer as its own context, if specified.
             ctx_path = item.get('context_path')
             ctx_obj = get_nested_dict(self._embryo.context, ctx_path)
 
@@ -141,8 +133,4 @@ class Incubator(object):
                 embryo_name=item['embryo_name'],
                 destination=item['dir_path'],
                 context=ctx_obj,
-            )
-
-            nested_projects.extend(incubator.hatch())
-
-        return nested_projects
+            ).hatch()

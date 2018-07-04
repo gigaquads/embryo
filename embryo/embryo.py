@@ -15,12 +15,12 @@ from appyratus.validation import Schema
 from appyratus.validation import fields
 from appyratus.types import Yaml
 
-from .project import Project
+from .renderer import Renderer
 from .environment import build_env
 from .exceptions import TemplateLoadFailed
 from .constants import EMBRYO_FILE_NAMES
 from .relationship import Relationship, RelationshipManager
-from .file_manager import FileTypeAdapter, JsonAdapter, FileManager
+from .filesystem import FileTypeAdapter, JsonAdapter, FileManager
 from .dot import DotFileManager
 from .utils import (
     say,
@@ -129,21 +129,15 @@ class Embryo(object):
 
     def pre_create(self) -> None:
         """
-        Perform any side-effects or preprocessing before the embryo Project and
+        Perform any side-effects or preprocessing before the embryo Renderer and
         related objects are created. if a context_schema exists, the `context`
         argument is the marshaled result of calling `schema.load(context)`.
         This method should be overriden.
         """
 
-    def on_create(self, project: Project) -> None:
+    def post_create(self) -> None:
         """
-        This logic follows the rendering of the tree.yml and templatized file
-        paths. At this point, we have access to stored filesystem context.
-        """
-
-    def post_create(self, project: Project) -> None:
-        """
-        Post_create is called upon the successful creation of the Project
+        Post_create is called upon the successful creation of the Renderer
         object. Any side-effects following the creation of the embryo in the
         filesystem can be performed here. This method should be overriden.
         """
@@ -155,14 +149,14 @@ class Embryo(object):
         self.dot.load(self)
 
         # Load the related dot-embryos and add them to context for the sake of
-        # accessing inherited data, like a project's name stored in a
-        # previously-run "new project" Embryo context.
+        # accessing inherited data, like a renderer's name stored in a
+        # previously-run "new renderer" Embryo context.
         self._related = RelationshipManager().load(self)
 
         say('Running pre-create method...')
         self.pre_create()
 
-    def apply_on_create(self, project: Project) -> None:
+    def build(self) -> None:
         # Here is where we finally call load, following all places where the
         # running context object could have been dynamically modified.
         schema = self.context_schema()
@@ -184,9 +178,6 @@ class Embryo(object):
 
         self._fs.read(self)
 
-        say('Running on-create method...')
-        self.on_create(project)
-
     def dump(self):
         """
         Dump schema to context and update with related attributes
@@ -195,14 +186,14 @@ class Embryo(object):
         dumped_context.update(self._related)
         return dumped_context
 
-    def apply_post_create(self, project: Project) -> None:
+    def apply_post_create(self) -> None:
         """
         This method should be called only by Incubator objects.
         """
         self._fs.write()
 
         say('Running post-create method...')
-        self.post_create(project)
+        self.post_create()
 
     def _load_context(self, context: Dict = None) -> Dict:
         """

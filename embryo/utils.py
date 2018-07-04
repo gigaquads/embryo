@@ -84,7 +84,7 @@ def get_nested_dict(root: Dict, dotted_path: str) -> Dict:
 def import_embryo_class(embryo_path: str) -> 'Embryo':
     """
     The actual embryo is a Python object that contains various functions
-    related to the generation of the project, like pre- and post-create
+    related to the generation of the renderer, like pre- and post-create
     hooks. This method loads and returns an instance.
     """
     from embryo.embryo import Embryo

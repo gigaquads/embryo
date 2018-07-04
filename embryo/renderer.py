@@ -20,9 +20,9 @@ from .exceptions import TemplateNotFound
 from .utils import say, shout
 
 
-class Project(object):
+class Renderer(object):
     """
-    A `Project`  is responsible for taking the loaded instructions owned by an
+    A `Renderer`  is responsible for taking the loaded instructions owned by an
     `Embryo` object and generating files into the filesystem.
     """
 
@@ -30,26 +30,59 @@ class Project(object):
 
     def __init__(self, embryo: 'Embryo'):
         """
-        Initialize a project
+        Initialize a renderer
         """
+        self._embryo = embryo
         self.root = embryo.destination.rstrip('/')
         self.fpaths = set()
         self.directory_paths = set()
         self.template_meta = {}
         self.nested_embryos = []
         self.dot_embryo_path = os.path.join(self.root, '.embryo')
-        self.embryo = embryo
 
         # these are initialized in the build method:
         self.tree = None
-        self.templates = None
+        self._jinja2_templates = None
 
-    def _build_jinja2_templates(self, templates):
+    def render(self, style_config: Dict = None) -> None:
+        """
+        # Args
+        - embryo: the Embryo object
+        - context: a context dict for use by jinja2 templates.
+        - style_config: yapf style options for code formating>
+
+        1. Create the directories and files in the file system.
+        2. Render templates into said files.
+        """
+        self._build_jinja2_templates()
+        self._analyze_embryo()
+
+        say('Context:\n\n{ctx}\n', ctx=json.dumps(
+            json.loads(self._json_encoder.encode(self._embryo.context)),
+            indent=2,
+            sort_keys=True
+        ))
+
+        say('Tree:\n\n{tree}', tree='\n'.join(
+            ' ' * 4 + line for line in yaml.dump(
+                self._embryo.tree,
+                default_flow_style=False,
+                indent=2,
+            ).split('\n')
+        ))
+
+        self._touch_filesystem()
+        self._render_files(style_config)
+        self._persist_context()
+
+    def _build_jinja2_templates(self):
         """
         Load template files from a templates module, ignoring any "private"
         object starting with an _. Return a dict, mapping each Template
         object's name to the object.
         """
+        templates = self._embryo.templates
+
         # if templates is a module extract its public string attributes
         # into the templates dict expected below.
         if isinstance(templates, ModuleType):
@@ -72,20 +105,21 @@ class Project(object):
                 elif isinstance(v, str):
                     loaded_templates[k] = jinja_env.from_string(v)
 
-        return loaded_templates
+        self._jinja2_templates = loaded_templates
 
-    def _analyze_tree(self, tree, parent_path: str = '') -> dict:
+    def _analyze_embryo(self):
+        self._analyze_tree(self._embryo.tree)
+
+    def _analyze_tree(self, tree, parent_path: str = ''):
         """
         Initializes `directory_paths`, `fpaths`, and `template_meta`. It
         returns a dict-based tree structure.
         """
-        if isinstance(tree, str):
-            tree = yaml.load(tree)
-
-        result = {}
+        # TODO: Move the detection of dot files into DotFileManager
+        # TODO: Move the loading of nested embryos to an embryo method
 
         if not tree:
-            return result
+            return
 
         for obj in tree:
             if isinstance(obj, dict):
@@ -112,20 +146,18 @@ class Project(object):
                             'context_path': ctx_key,
                         }
                         self.fpaths.add(fpath)
-                        result[k] = True
                 else:
                     # call _analyze_tree on subdirectory
                     child_path = join(parent_path, k)
                     if child_path == '.embryo':
                         self.dot_embryo_path = child_path
-                    result[k] = self._analyze_tree(obj[k], child_path)
+                    self._analyze_tree(obj[k], child_path)
                     self.directory_paths.add(child_path)
             elif obj.endswith('/'):
                 # it's an empty directory name
                 dir_name = obj
                 dir_path = join(parent_path, dir_name)
                 self.directory_paths.add(dir_path)
-                result[dir_name] = False
                 if dir_name == '.embryo':
                     self.dot_embryo_path = dir_path
             else:
@@ -136,68 +168,25 @@ class Project(object):
                     self.dot_embryo_path = fpath
                 else:
                     self.fpaths.add(fpath)
-                    if fpath in self.templates:
+                    if fpath in self._jinja2_templates:
                         # attempt to resolve the full path
                         self.template_meta[fpath] = {
                             'template_name': fpath,
                             'context_path': None,
                         }
-                    elif fname in self.templates:
+                    elif fname in self._jinja2_templates:
                         # top-level resolution of file name only
                         self.template_meta[fpath] = {
                             'template_name': fname,
                             'context_path': None,
                         }
-                    result[fname] = True
 
-        return result
-
-    def build(self, style_config: Dict = None) -> None:
-        """
-        # Args
-        - embryo: the Embryo object
-        - context: a context dict for use by jinja2 templates.
-        - style_config: yapf style options for code formating>
-
-        1. Create the directories and files in the file system.
-        2. Render templates into said files.
-        """
-        say('Stimulating embryonic growth sequence...')
-        say('Hatching Embryo: "{name}"', name=self.embryo.name)
-        say('Embryo Location: {path}', path=self.embryo.path)
-        say('Destination: {dest}', dest=self.embryo.destination)
-
-        self.embryo.apply_on_create(self)
-
-        # create the project file structure
-        self.templates = self._build_jinja2_templates(self.embryo.templates)
-        self.tree = self._analyze_tree(self.embryo.tree)
-
-        self.touch()
-
-        # insert context into .embryo/context.json file
-        self._persist_context()
-
-        say('Template Context:\n\n{ctx}\n', ctx=json.dumps(
-            json.loads(self._json_encoder.encode(self.embryo.context)),
-            indent=2, sort_keys=True
-        ))
-
-        say('Tree:\n\n{tree}', tree='\n'.join(
-            ' ' * 4 + line for line in yaml.dump(
-                self.embryo.tree,
-                explicit_start=False,
-                explicit_end=False,
-                default_flow_style=False,
-                indent=2,
-            ).split('\n')
-        ))
-
+    def _render_files(self, style_config):
         # Note that while we want the "loaded" context object in the pre, on,
         # and post-create methods, we want the "dumped" context in the
         # templates.
-        schema = self.embryo.context_schema()
-        dumped_context = self.embryo.dump()
+        schema = self._embryo.context_schema()
+        dumped_context = self._embryo.dump()
 
         for fpath in self.fpaths:
             meta = self.template_meta.get(fpath)
@@ -207,20 +196,19 @@ class Project(object):
                 ctx_path = meta.get('context_path')
                 ctx_obj = dumped_context
 
-                # result the context sub-object to pass into
+                # resolve context sub-object to pass into
                 # the template as its context
                 if ctx_path:
-                    for k in ctx_path.split('.'):
-                        ctx_obj = ctx_obj[k]
+                    ctx_obj = get_nested_dict(dumped_context, ctx_path)
 
                 # absolute file path for the rendered template
                 abs_fpath = os.path.join(self.root, fpath.lstrip('/'))
 
                 # inject the Embryo Python object into the context
                 ctx_obj = deepcopy(ctx_obj)
-                ctx_obj['embryo'] = self.embryo
+                ctx_obj['embryo'] = self._embryo
 
-                self.render(
+                self._render_file(
                     abs_fpath, tpl_name, ctx_obj, style_config=style_config
                 )
 
@@ -230,7 +218,9 @@ class Project(object):
         """
         Appnd the context dict to the .embryo/context.json object.
         """
-        embryo = self.embryo
+        # TODO: Move this method into the DotFileManager
+
+        embryo = self._embryo
         dot_embryo_path = self.dot_embryo_path
         context_json_path = os.path.join(dot_embryo_path, 'context.json')
         embryo_name_2_contexts = {}
@@ -270,11 +260,12 @@ class Project(object):
                 ) + '\n'
             )
 
-    def touch(self) -> None:
+    def _touch_filesystem(self) -> None:
         """
         Creates files and directories in the file system. This will not
         overwrite anything.
         """
+        # Move this into the FileManager
         if not os.path.exists(self.root):
             os.makedirs(self.root)
             say('Creating directory: {path}', path=self.root)
@@ -289,7 +280,7 @@ class Project(object):
                 say('Touching file: {path}', path=fpath)
                 open(path, 'a').close()
 
-    def render(
+    def _render_file(
         self,
         abs_fpath: str,
         template_name: str,
@@ -298,10 +289,10 @@ class Project(object):
     ) -> None:
         """
         Renders a template to a file, provided that the `abs_fpath` provided is
-        recognized by this `Project`.
+        recognized by this `Renderer`.
         """
         try:
-            template = self.templates[template_name]
+            template = self._jinja2_templates[template_name]
         except KeyError:
             raise TemplateNotFound(template_name)
 
@@ -324,29 +315,13 @@ class Project(object):
         else:
             formatted_text = rendered_text
 
-        self.write(abs_fpath, formatted_text)
+        self._write_file(abs_fpath, formatted_text)
 
-    def write(self, fpath: str, text: str) -> None:
+    def _write_file(self, fpath: str, text: str) -> None:
         """
         Writes a string to a file, provided that the `fpath` provided is
-        recognized by this `Project`.
+        recognized by this `Renderer`.
         """
         abs_fpath = join(self.root, fpath.strip())
         with open(abs_fpath, 'w') as f_out:
             f_out.write(text)
-
-    def has_directory(self, path) -> bool:
-        """
-        Return True if the given path is a directory path. The path must be
-        recognized by this `Project`.
-        """
-        key = '/' + path.strip('/')
-        return self.directory_paths.get(key)
-
-    def has_file(self, path) -> bool:
-        """
-        Return True if the given path is a file path. The path must be
-        recognized by this `Project`.
-        """
-        key = '/' + path.strip('/')
-        return self.fpaths.get(key)

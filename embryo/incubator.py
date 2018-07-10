@@ -26,11 +26,20 @@ class Incubator(object):
     the filesystem; while the `Renderer` is responsible for the building.
     """
 
+    @classmethod
+    def from_embryo(self, embryo: 'Embyro'):
+        incubator = cls(embryo_name=None, destination=None)
+        incubator._embryo = embryo
+        incubator._embryo_path = embryo.path
+        incubator._embryo_class = embryo.__class__
+        return incubator
+
     def __init__(
         self,
         embryo_name: str,
         destination: str,
         context: Dict = None,
+        embryo: 'Embryo' = None,
     ):
         """
         Generate an embryo, along with any embryos nested therein. Returns a
@@ -44,6 +53,12 @@ class Incubator(object):
         """
         self._embryo_search_path = build_embryo_search_path()
         self._json_encoder = JsonEncoder()
+        self._embryo_class = None
+        self._embryo_path = None
+        self._embryo = None
+
+        if embryo_name is None:
+            return
 
         # Add Embryo metadata to context
         context.update({
@@ -70,67 +85,7 @@ class Incubator(object):
 
     def hatch(self) -> None:
         """
-        # Returns
-        A list of Renderer objects, where the first element is the embryo being
-        loaded, followed by nested renderers in breadth-first order.
-        """
-        self._embryo.apply_pre_create()
-        self._render_embryo()
-        self._embryo.apply_post_create()
-
-    def _resolve_embryo_path(self, name: str) -> str:
-        """
-        Return the filepath for the embryo with the given name.
-        """
-        name = name.rstrip('/')
-        if inspect.ismodule(name):
-            # path to the provided python module
-            return name.__path__._path[0]
-        elif name[0] == '/':
-            # absolute path to embryo dir
-            return name
-        else:
-            for path in self._embryo_search_path:
-                path = '{}/{}'.format(path.rstrip('/'), name)
-                if os.path.exists(path):
-                    return path
-
-        raise EmbryoNotFound(name)
-
-    def _render_embryo(self):
-        """
         This takes all the prepared data structures and uses them to create a
         Renderer and build it. The build renderer is returned.
         """
-        say('Stimulating embryonic growth sequence...')
-        say('Hatching Embryo: "{name}"', name=self._embryo.name)
-        say('Embryo Location: {path}', path=self._embryo.path)
-        say('Destination: {dest}', dest=self._embryo.destination)
-
-        self._embryo.build()
-
-        renderer = Renderer(self._embryo)
-        renderer.render()
-
-        self._renderer_nested_embryos(renderer)
-
-    def _renderer_nested_embryos(self, renderer) -> None:
-        """
-        All nested embryos declared in the embryo tree are built here,
-        recursively. The list of Renderers is returned.
-        """
-        nested_renderers = []
-
-        for item in renderer.nested_embryos:
-            # extract the nested context sub-dict to pass into the nested
-            # renderer as its own context, if specified.
-            ctx_path = item.get('context_path')
-            ctx_obj = get_nested_dict(self._embryo.context, ctx_path)
-
-            say('Hatching nested embryo: {name}...', name=item['embryo_name'])
-
-            incubator = Incubator(
-                embryo_name=item['embryo_name'],
-                destination=item['dir_path'],
-                context=ctx_obj,
-            ).hatch()
+        self._embryo.hatch()

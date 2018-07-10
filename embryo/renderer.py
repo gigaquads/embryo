@@ -114,7 +114,6 @@ class Renderer(object):
         Initializes `directory_paths`, `fpaths`, and `template_meta`. It
         returns a dict-based tree structure.
         """
-        # TODO: Move the detection of dot files into DotFileManager
         # TODO: Move the loading of nested embryos to an embryo method
 
         if not tree:
@@ -211,7 +210,7 @@ class Renderer(object):
         Creates files and directories in the file system. This will not
         overwrite anything.
         """
-        # Move this into the FileManager
+        # TODO: Move this into the FileManager
         if not os.path.exists(self.root):
             os.makedirs(self.root)
             say('Creating directory: {path}', path=self.root)

@@ -81,6 +81,10 @@ class DotFileManager(object):
             return []
 
     def persist(self, embryo: 'Embryo') -> None:
+        """
+        Initialize the .embryo directory if it doesn't exist and append the
+        embryo's context dict to the context.json file.
+        """
         dot_embryo_path = self._resolve_dot_dir(embryo)
         context_json_path = os.path.join(dot_embryo_path, 'context.json')
         embryo_name_2_contexts = {}

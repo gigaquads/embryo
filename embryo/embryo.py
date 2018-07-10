@@ -61,6 +61,8 @@ class Embryo(object):
         self._path = path
         self._context = self._load_context(context)
         self._schema = self.context_schema()
+        self._nested = {}
+
         self.templates = None
         self.tree = None
 
@@ -89,6 +91,10 @@ class Embryo(object):
         return [
             JsonAdapter(indent=2, sort_keys=True),
         ]
+
+    @property
+    def nested(self) -> Dict[str, 'Embryo']:
+        return self._nested
 
     @property
     def related(self):
@@ -142,7 +148,14 @@ class Embryo(object):
         filesystem can be performed here. This method should be overriden.
         """
 
-    def apply_pre_create(self) -> None:
+    def on_create(self) -> None:
+        """
+        Here, we assume that the context data is finished being prepared for
+        dispatch to the template renderer. We can access the fully-loaded tree
+        and file data provided by the FileManager
+        """
+
+    def _apply_pre_create(self) -> None:
         """
         This method should be called only by Incubator objects.
         """
@@ -156,15 +169,74 @@ class Embryo(object):
         say('Running pre-create method...')
         self.pre_create()
 
-    def build(self) -> None:
+    def apply_post_create(self) -> None:
+        """
+        This method should be called only by Incubator objects.
+        """
+        self._fs.write()
+
+        say('Running post-create method...')
+        self.post_create()
+
+    def hatch(self) -> None:
+        """
+        This method loads pre-rendered templates. This includes file templates
+        in the templates/ dir as well as the tree.yml file, which is also a
+        template.
+        """
+        say('Stimulating embryonic growth sequence...')
+        say('Hatching Embryo: "{name}"', name=self.name)
+        say('Embryo Location: {path}', path=self.path)
+        say('Destination: {dest}', dest=self.destination)
+
         self._validate_context()
+        self._apply_pre_create()
 
-        dumped_context = self.dump()
+        template_context = self.dump()
 
-        self.tree = self._load_tree(dumped_context)
-        self.templates = self._load_templates(dumped_context)
+        self.tree = self._load_tree(template_context)
+        self.templates = self._load_templates(template_context)
+
+        renderer = Renderer(self)
+        renderer.render()
 
         self._fs.read(self)
+        self._load_nested()
+        self._apply_on_create()
+        self._hatch_nested()
+        self._apply_post_create()
+
+    def _load_nested(self):
+        search_path = build_embryo_search_path()
+
+        def load_recursive(nodes, path):
+            for obj in nodes:
+                if isinstance(obj, dict):
+                    key = list(obj.keys())[0]
+                    if key == 'embryo':  # TODO: define constant regex
+                        match = RE_NESTED_EMBRYO.match(obj[key])
+                        embryo_name, context_path = match.groups()
+                        dest_dir = os.path.abspath(path)
+                        load_embryo(embryo_name, context_path, dest_dir)
+                    else:
+                        child_nodes = obj[key]
+                        load_dfs(child_nodes, os.path.join(path, key))
+
+        def load_embryo(embryo_name, context_path dest_dir):
+            say('Hatching nested embryo: {name}...', name=embryo_name)
+            context = get_nested_dict(context_path)
+            embryo_path = resolve_embryo_path(search_path, embryo_name)
+            embryo_factory = import_embryo_class(embryo_path)
+            embryo = embryo_factory(embryo_path, context)
+            self.nested[dest_dir] = embryo
+
+        # this loads the embryos into self.nested
+        load_recursive(self.tree, '')
+
+    def _hatch_nested(self):
+        for embryo in self._nested.values():
+            incubator = incubator.from_embryo(embryo)
+            incubator.hatch()
 
     def persist(self):
         self.dot.persist(self)
@@ -188,15 +260,6 @@ class Embryo(object):
         dumped_context = self._schema.dump(self.context).data
         dumped_context.update(self._related)
         return dumped_context
-
-    def apply_post_create(self) -> None:
-        """
-        This method should be called only by Incubator objects.
-        """
-        self._fs.write()
-
-        say('Running post-create method...')
-        self.post_create()
 
     def _load_context(self, context: Dict = None) -> Dict:
         """

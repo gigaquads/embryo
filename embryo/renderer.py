@@ -28,22 +28,20 @@ class Renderer(object):
 
     _json_encoder = JsonEncoder()
 
-    def __init__(self, embryo: 'Embryo'):
+    def __init__(self):
         """
         Initialize a renderer
         """
-        self._embryo = embryo
-        self.root = embryo.destination.rstrip('/')
+        self.embryo = None
+        self.root = None
         self.fpaths = set()
         self.directory_paths = set()
         self.template_meta = {}
         self.nested_embryos = []
-
-        # these are initialized in the build method:
         self.tree = None
-        self._jinja2_templates = None
+        self.jinja2_templates = None
 
-    def render(self, style_config: Dict = None) -> None:
+    def render(self, embryo: 'Embryo', style_config: Dict = None) -> None:
         """
         # Args
         - embryo: the Embryo object
@@ -53,18 +51,21 @@ class Renderer(object):
         1. Create the directories and files in the file system.
         2. Render templates into said files.
         """
-        self._build_jinja2_templates()
+        self.embryo = embryo
+        self.root = embryo.destination.rstrip('/')
+
+        self._buildjinja2_templates()
         self._analyze_embryo()
 
         say('Context:\n\n{ctx}\n', ctx=json.dumps(
-            json.loads(self._json_encoder.encode(self._embryo.context)),
+            json.loads(self._json_encoder.encode(self.embryo.context)),
             indent=2,
             sort_keys=True
         ))
 
         say('Tree:\n\n{tree}', tree='\n'.join(
             ' ' * 4 + line for line in yaml.dump(
-                self._embryo.tree,
+                self.embryo.tree,
                 default_flow_style=False,
                 indent=2,
             ).split('\n')
@@ -72,15 +73,15 @@ class Renderer(object):
 
         self._touch_filesystem()
         self._render_files(style_config)
-        self._embryo.persist()
+        self.embryo.persist()
 
-    def _build_jinja2_templates(self):
+    def _buildjinja2_templates(self):
         """
         Load template files from a templates module, ignoring any "private"
         object starting with an _. Return a dict, mapping each Template
         object's name to the object.
         """
-        templates = self._embryo.templates
+        templates = self.embryo.templates
 
         # if templates is a module extract its public string attributes
         # into the templates dict expected below.
@@ -104,10 +105,10 @@ class Renderer(object):
                 elif isinstance(v, str):
                     loaded_templates[k] = jinja_env.from_string(v)
 
-        self._jinja2_templates = loaded_templates
+        self.jinja2_templates = loaded_templates
 
     def _analyze_embryo(self):
-        self._analyze_tree(self._embryo.tree)
+        self._analyze_tree(self.embryo.tree)
 
     def _analyze_tree(self, tree, parent_path: str = ''):
         """
@@ -159,13 +160,13 @@ class Renderer(object):
                 fname = obj
                 fpath = join(parent_path, fname)
                 self.fpaths.add(fpath)
-                if fpath in self._jinja2_templates:
+                if fpath in self.jinja2_templates:
                     # attempt to resolve the full path
                     self.template_meta[fpath] = {
                         'template_name': fpath,
                         'context_path': None,
                     }
-                elif fname in self._jinja2_templates:
+                elif fname in self.jinja2_templates:
                     # top-level resolution of file name only
                     self.template_meta[fpath] = {
                         'template_name': fname,
@@ -176,8 +177,8 @@ class Renderer(object):
         # Note that while we want the "loaded" context object in the pre, on,
         # and post-create methods, we want the "dumped" context in the
         # templates.
-        schema = self._embryo.context_schema()
-        dumped_context = self._embryo.dump()
+        schema = self.embryo.context_schema()
+        dumped_context = self.embryo.dumped_context
 
         for fpath in self.fpaths:
             meta = self.template_meta.get(fpath)
@@ -197,7 +198,7 @@ class Renderer(object):
 
                 # inject the Embryo Python object into the context
                 ctx_obj = deepcopy(ctx_obj)
-                ctx_obj['embryo'] = self._embryo
+                ctx_obj['embryo'] = self.embryo
 
                 self._render_file(
                     abs_fpath, tpl_name, ctx_obj, style_config=style_config
@@ -237,7 +238,7 @@ class Renderer(object):
         recognized by this `Renderer`.
         """
         try:
-            template = self._jinja2_templates[template_name]
+            template = self.jinja2_templates[template_name]
         except KeyError:
             raise TemplateNotFound(template_name)
 

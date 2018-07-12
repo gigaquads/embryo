@@ -109,9 +109,9 @@ class DotFileManager(object):
             context = schema.dump(embryo.context, strict=True).data
 
         if embryo.name not in embryo_name_2_contexts:
-            embryo_name_2_contexts[embryo.name] = [embryo.context]
+            embryo_name_2_contexts[embryo.name] = [embryo.loaded_context]
         else:
-            embryo_name_2_contexts[embryo.name].append(embryo.context)
+            embryo_name_2_contexts[embryo.name].append(embryo.loaded_context)
 
         # write the appended data back to the JSON file
         with open(context_json_path, 'w') as fout:

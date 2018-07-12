@@ -58,8 +58,11 @@ class Incubator(object):
         self._embryo = None
 
         if embryo_name is None:
+            # this should mean we're coming from the
+            # from_embryo factory method
             return
 
+        # ------
         # Add Embryo metadata to context
         context.update({
             'embryo': {

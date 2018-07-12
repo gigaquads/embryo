@@ -3,6 +3,7 @@ import json
 import ujson
 
 from appyratus.json import JsonEncoder
+from appyratus.io import Yaml
 
 from .utils import say
 
@@ -45,6 +46,21 @@ class JsonAdapter(FileTypeAdapter):
                 sort_keys=self._sort_keys
             )
             json_file.write(json_str)
+
+
+class YamlAdapter(FileTypeAdapter):
+    def __init__(self, multi=False):
+        self._multi = multi
+
+    @property
+    def extensions(self) -> set:
+        return {'yml', 'yaml'}
+
+    def read(self, abs_file_path: str) -> dict:
+        return Yaml.from_file(file_path=abs_file_path, multi=self._multi)
+
+    def write(self, abs_file_path: str, file_obj: dict) -> None:
+        Yaml.to_file(file_path=abs_file_path, data=file_obj, multi=self._multi)
 
 
 class FileMetadata(object):

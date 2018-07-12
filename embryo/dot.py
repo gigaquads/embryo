@@ -9,8 +9,11 @@ from collections import defaultdict
 from appyratus.json import JsonEncoder
 
 from .utils import (
-    say, shout, resolve_embryo_path,
-    import_embryo_class, build_embryo_search_path,
+    say,
+    shout,
+    resolve_embryo_path,
+    import_embryo_class,
+    build_embryo_search_path,
 )
 
 
@@ -21,6 +24,7 @@ class DotFileManager(object):
     provides a high-level interface for searching historical Embryo objects
     whose context data was discovered in .embryo/context.json files.
     """
+
     def __init__(self):
         self._json_encoder = JsonEncoder()
         self._embryo_search_path = build_embryo_search_path()
@@ -45,7 +49,8 @@ class DotFileManager(object):
             embryo_name2context_list = self._load_context_json(json_fpath)
             for embryo_name, context_list in embryo_name2context_list.items():
                 count = len(context_list)
-                say('Loading embryo: "{name}" ({count}x)...',
+                say(
+                    'Loading embryo: "{name}" ({count}x)...',
                     name=embryo_name,
                     count=count
                 )
@@ -118,9 +123,10 @@ class DotFileManager(object):
             say('Saving context to {path}', path=context_json_path)
             fout.write(
                 json.dumps(
-                    json.loads(
-                        self._json_encoder.encode(embryo_name_2_contexts)
-                    ), indent=2, sort_keys=True
+                    json.
+                    loads(self._json_encoder.encode(embryo_name_2_contexts)),
+                    indent=2,
+                    sort_keys=True
                 ) + '\n'
             )
 
@@ -162,6 +168,8 @@ class DotFileManager(object):
                 node_name = list(node.keys())[0]
                 parent_path = os.path.join(parent_path, node_name)
                 for children in node.values():
+                    if not children:
+                        continue
                     for child_node in children:
                         dot_dir = analyze_node(child_node, parent_path)
                         if dot_dir:

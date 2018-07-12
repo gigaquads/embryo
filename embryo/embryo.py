@@ -201,6 +201,8 @@ class Embryo(object):
         search_path = build_embryo_search_path()
 
         def load_recursive(nodes, path):
+            if not nodes:
+                return
             for obj in nodes:
                 if isinstance(obj, dict):
                     key = list(obj.keys())[0]
@@ -232,6 +234,7 @@ class Embryo(object):
 
     def _load_context(self):
         assert self.context is not None
+        retval = {}
         schema = self.context_schema()
         if schema:
             result = schema.load(self.context)
@@ -241,8 +244,9 @@ class Embryo(object):
                     errors=json.dumps(result.errors, indent=2, sort_keys=True)
                 )
                 exit(-1)
-            return result.data
-        return {}
+            retval.update(result.data)
+        retval['embryo'] = self.context['embryo']
+        return retval
 
     def _dump_context(self):
         """

@@ -80,6 +80,8 @@ class FileManager(object):
 
         def read_recursive(node: dict):
             for parent_key, children in node.items():
+                if not children:
+                    continue
                 for item in children:
                     if isinstance(item, dict):
                         read_recursive(item)

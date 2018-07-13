@@ -20,7 +20,7 @@ from .environment import build_env
 from .exceptions import TemplateLoadFailed
 from .constants import EMBRYO_FILE_NAMES
 from .relationship import Relationship, RelationshipManager
-from .file_manager import (
+from .filesystem import (
     FileTypeAdapter,
     JsonAdapter,
     YamlAdapter,

@@ -27,7 +27,7 @@ class Incubator(object):
     """
 
     @classmethod
-    def from_embryo(self, embryo: 'Embyro'):
+    def from_embryo(cls, embryo: 'Embyro'):
         incubator = cls(embryo_name=None, destination=None)
         incubator._embryo = embryo
         incubator._embryo_path = embryo.path

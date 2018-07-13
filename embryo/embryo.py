@@ -18,7 +18,11 @@ from appyratus.types import Yaml
 from .renderer import Renderer
 from .environment import build_env
 from .exceptions import TemplateLoadFailed
-from .constants import EMBRYO_FILE_NAMES
+from .constants import (
+    EMBRYO_FILE_NAMES,
+    RE_RENDERING_EMBRYO,
+    NESTED_EMBRYO_KEY,
+)
 from .relationship import Relationship, RelationshipManager
 from .filesystem import (
     FileTypeAdapter,
@@ -34,6 +38,7 @@ from .utils import (
     resolve_embryo_path,
     import_embryo_class,
     build_embryo_search_path,
+    get_nested_dict,
 )
 
 
@@ -113,7 +118,7 @@ class Embryo(object):
         """
         return ContextSchema()
 
-    def pre_create(self) -> None:
+    def pre_create(self, context) -> None:
         """
         Perform any side-effects or preprocessing before the embryo Renderer and
         related objects are created. if a context_schema exists, the `context`
@@ -121,14 +126,14 @@ class Embryo(object):
         This method should be overriden.
         """
 
-    def on_create(self) -> None:
+    def on_create(self, context) -> None:
         """
         Here, we assume that the context data is finished being prepared for
         dispatch to the template renderer. We can access the fully-loaded tree
         and file data provided by the FileManager
         """
 
-    def post_create(self) -> None:
+    def post_create(self, context) -> None:
         """
         Post_create is called upon the successful creation of the Renderer
         object. Any side-effects following the creation of the embryo in the
@@ -158,13 +163,18 @@ class Embryo(object):
         self.dot.load(self)
 
         say('Running pre-create method...')
-        self.pre_create()
+        self.pre_create(self.context)
 
         # Now there can be no more edits to self.context,
         # so we load the raw context dict and dump it into
         # the templates for rendering.
         self.loaded_context = self._load_context()
         self.dumped_context = self._dump_context()
+
+        # Generates a dict that maps relationship name
+        # to Embryo object, found by the dot file manager,
+        # using Relationship ctor arguments.
+        self.related = RelationshipManager().load(self)
 
         # Render the tree.yml template.
         self.tree = self._render_tree()
@@ -184,13 +194,8 @@ class Embryo(object):
         # "nested" in tree.yml.
         self._load_nested_embryos()
 
-        # Generates a dict that maps relationship name
-        # to Embryo object, found by the dot file manager,
-        # using Relationship ctor arguments.
-        self.related = RelationshipManager().load(self)
-
         say('Running on-create method...')
-        self.on_create()
+        self.on_create(self.loaded_context)
 
         # Write files loaded by FileManager back to disk,
         # using available filetype adapters.
@@ -201,7 +206,7 @@ class Embryo(object):
         self._hatch_nested_embryos()
 
         say('Running post-create method...')
-        self.post_create()
+        self.post_create(self.loaded_context)
 
     def _load_nested_embryos(self):
         search_path = build_embryo_search_path()
@@ -212,8 +217,8 @@ class Embryo(object):
             for obj in nodes:
                 if isinstance(obj, dict):
                     key = list(obj.keys())[0]
-                    if key == 'embryo':  # TODO: define constant regex
-                        match = RE_NESTED_EMBRYO.match(obj[key])
+                    if key == NESTED_EMBRYO_KEY:
+                        match = RE_RENDERING_EMBRYO.match(obj[key])
                         embryo_name, context_path = match.groups()
                         dest_dir = os.path.abspath(path)
                         load_embryo(embryo_name, context_path, dest_dir)
@@ -222,8 +227,10 @@ class Embryo(object):
                         load_recursive(child_nodes, os.path.join(path, key))
 
         def load_embryo(embryo_name, context_path, dest_dir):
+            assert self.loaded_context
             say('Hatching nested embryo: {name}...', name=embryo_name)
-            context = get_nested_dict(context_path)
+            context = get_nested_dict(self.loaded_context, context_path).copy()
+            context['embryo'] = self.context['embryo']
             embryo_path = resolve_embryo_path(search_path, embryo_name)
             embryo_factory = import_embryo_class(embryo_path)
             embryo = embryo_factory(embryo_path, context)
@@ -233,9 +240,10 @@ class Embryo(object):
         load_recursive(self.tree, '')
 
     def _hatch_nested_embryos(self):
+        from embryo.incubator import Incubator
         for embryo_list in self.nested.values():
             for embryo in embryo_list:
-                incubator = incubator.from_embryo(embryo)
+                incubator = Incubator.from_embryo(embryo)
                 incubator.hatch()
 
     def _load_context(self):
@@ -349,7 +357,8 @@ class Embryo(object):
 
         say('Rendering tree.yml...')
 
-        context = self.dumped_context
+        context = self.dumped_context.copy()
+        context.update(self.related)
         fpath = build_embryo_filepath(self.path, 'tree')
 
         with open(fpath) as tree_file:

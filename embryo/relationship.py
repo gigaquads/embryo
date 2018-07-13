@@ -49,7 +49,7 @@ class RelationshipManager(object):
 
         for rel_name, rel in relationships.items():
             say('Evaluating relationship: {rel}...', rel=rel_name)
-            if self._is_nested:
+            if rel.is_nested:
                 assert rel.path_to_dot_dir is None
                 # ^ No such thing as a dot-file path to a nested embryo
                 embryos = embryo.nested[rel.embryo_name]

@@ -14,7 +14,11 @@ from yapf.yapflib.yapf_api import FormatCode
 from appyratus.types import Yaml
 from appyratus.json import JsonEncoder
 
-from .constants import RE_RENDERING_METADATA, STYLE_CONFIG
+from .constants import (
+    RE_RENDERING_METADATA,
+    RE_RENDERING_EMBRYO,
+    STYLE_CONFIG,
+)
 from .environment import build_env
 from .exceptions import TemplateNotFound
 from .utils import say, shout
@@ -57,19 +61,26 @@ class Renderer(object):
         self._buildjinja2_templates()
         self._analyze_embryo()
 
-        say('Context:\n\n{ctx}\n', ctx=json.dumps(
-            json.loads(self._json_encoder.encode(self.embryo.context)),
-            indent=2,
-            sort_keys=True
-        ))
-
-        say('Tree:\n\n{tree}', tree='\n'.join(
-            ' ' * 4 + line for line in yaml.dump(
-                self.embryo.tree,
-                default_flow_style=False,
+        say(
+            'Context:\n\n{ctx}\n',
+            ctx=json.dumps(
+                json.loads(self._json_encoder.encode(self.embryo.context)),
                 indent=2,
-            ).split('\n')
-        ))
+                sort_keys=True
+            )
+        )
+
+        say(
+            'Tree:\n\n{tree}',
+            tree='\n'.join(
+                ' ' * 4 + line
+                for line in yaml.dump(
+                    self.embryo.tree,
+                    default_flow_style=False,
+                    indent=2,
+                ).split('\n')
+            )
+        )
 
         self._touch_filesystem()
         self._render_files(style_config)
@@ -127,16 +138,19 @@ class Renderer(object):
                 if isinstance(v, str):
                     # in this case, we have a file name or nested embryo with
                     # associated template rendering metadata we must parse out.
-                    match = RE_RENDERING_METADATA.match(v)
                     if k == 'embryo':
                         # embryo:falcon_app(foo)
+                        match = RE_RENDERING_EMBRYO.match(v)
                         nested_embryo_name, ctx_key = match.groups()
-                        self.nested_embryos.append({
-                            'embryo_name': nested_embryo_name,
-                            'context_path': ctx_key,
-                            'dir_path': parent_path,
-                        })
+                        self.nested_embryos.append(
+                            {
+                                'embryo_name': nested_embryo_name,
+                                'context_path': ctx_key,
+                                'dir_path': parent_path,
+                            }
+                        )
                     else:
+                        match = RE_RENDERING_METADATA.match(v)
                         fname = k
                         tpl_name, ctx_key = match.groups()
                         fpath = join(parent_path, fname)
@@ -198,6 +212,7 @@ class Renderer(object):
 
                 # inject the Embryo Python object into the context
                 ctx_obj = deepcopy(ctx_obj)
+                ctx_obj.update(self.embryo.related)
                 ctx_obj['embryo'] = self.embryo
 
                 self._render_file(

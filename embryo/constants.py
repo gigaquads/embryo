@@ -1,7 +1,7 @@
 import re
 
-
 RE_RENDERING_METADATA = re.compile(r'^(\w+)\s*\(\s*([\w\.]*)\s*\)$')
+RE_RENDERING_EMBRYO = re.compile(r'^([\w\-\_\/]+)\(([\w\.]*)\)$')
 
 EMBRYO_PATH_ENV_VAR_NAME = 'EMBRYO_PATH'
 
@@ -14,7 +14,9 @@ EMBRYO_FILE_NAMES = {
     'metadata-dir': '.embryo',
 }
 
-STYLE_CONFIG={
+NESTED_EMBRYO_KEY = 'embryo'
+
+STYLE_CONFIG = {
     'BASED_ON_STYLE': 'pep8',
     'COLUMN_LIMIT': 80,
     'COALESCE_BRACKETS': True,
@@ -33,4 +35,3 @@ PROMPT_STYLES = {
     'say': '>>>',
     'scream': 'EEE',
 }
-

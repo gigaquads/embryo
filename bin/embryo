@@ -52,15 +52,14 @@ class EmbryoProgam(CliProgram):
 
 class EmbryoHatchSubparser(Subparser):
     def perform(self, args):
-        self.args = args
         incubator = Incubator(
             embryo_name=args.embryo,
             destination=args.destination,
-            context=self.load_context(),
+            context=self.load_context(args),
         )
         return incubator.hatch()
 
-    def load_context_arg(self):
+    def load_context_arg(self, cli_args_context):
         """
         This loads the --context arg into a dict and returns it.
         """
@@ -73,8 +72,8 @@ class EmbryoHatchSubparser(Subparser):
 
         context = {}
 
-        if self.args.context:
-            context_str = self.args.context
+        if cli_args_context:
+            context_str = cli_args_context
             if has_ext(context_str, ['json']):
                 with open(context_filepath) as context_file:
                     context = ujson.load(context_file)
@@ -86,7 +85,7 @@ class EmbryoHatchSubparser(Subparser):
 
         return context
 
-    def load_context(self):
+    def load_context(self, cli_args):
         """
         Here, we convert the commandline arguments into a dict and merge it
         together with the dict loaded from the --context argument. The return
@@ -95,12 +94,12 @@ class EmbryoHatchSubparser(Subparser):
         non_context_arg_names = {'action', 'context', 'destination', 'embryo'}
 
         data_from_cli_kwargs = {
-            k: getattr(self.args, k)
-            for k in dir(self.args)
+            k: getattr(cli_args, k)
+            for k in dir(cli_args)
             if not ((k in non_context_arg_names) or k.startswith('_'))
         }
 
-        data_from_context_arg = self.load_context_arg()
+        data_from_context_arg = self.load_context_arg(cli_args.context)
 
         context = {}
         context.update(data_from_cli_kwargs)

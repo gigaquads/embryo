@@ -79,6 +79,8 @@ def get_nested_dict(root: Dict, dotted_path: str = None) -> Dict:
     if not dotted_path:
         return root
     for k in dotted_path.split('.'):
+        if k not in d:
+            return {}
         d = d[k]
     return d
 

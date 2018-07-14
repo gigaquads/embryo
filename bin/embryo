@@ -2,51 +2,69 @@
 # encoding=utf8
 # vim: set filetype=python
 
-from appyratus.util.argz import Prog, Subparser, Arg
+from appyratus.cli import CliProgram, Subparser, Arg
 from appyratus.util import DictUtils
-from appyratus.types import Yaml
+from appyratus.io import Yaml
 
 from embryo import Incubator
 
 
-PROG = dict(
-    prog="embryo",
-    name="Embryo",
-    version="0",
-    tagline="wat",
-)
-
-
-class EmbryoCreateSubparser(Subparser):
-    name = 'create'
-    help = 'generate new embryo'
-    defaults = dict(action='create')
-
-    embryo_arg = Arg(
-        flags=('embryo', ),
-        type=str,
-        help="Name of the embryo to hatch."
+def main():
+    """
+    My very own Embryo Program
+    """
+    prog = EmbryoProgam(
+        name="embryo",
+        version="0",
+        tagline="wat",
     )
-    dest_arg = Arg(
-        flags=('-d', '--destination'),
-        type=str,
-        default='.',
-        help=
-        "Destination directory."
-    )
-    context_arg = Arg(
-        flags=('-c', '--context'),
-        help="Path to a json/yaml context file or an inline JSON object.",
-    )
+    prog.run()
 
 
-class EmbryoProg(Prog):
-    create_subparser = EmbryoCreateSubparser()
+class EmbryoProgam(CliProgram):
+    def subparsers(self):
+        return [
+            EmbryoHatchSubparser(
+                name='hatch',
+                help='Hatch a new embryo',
+                defaults=dict(action='hatch'),
+                args=[
+                    Arg(
+                        flags=('embryo', ),
+                        type=str,
+                        help="Name of the embryo to hatch."
+                    ),
+                    Arg(
+                        flags=('-d', '--destination'),
+                        type=str,
+                        default='.',
+                        help="Destination directory."
+                    ),
+                    Arg(
+                        flags=('-c', '--context'),
+                        help=
+                        "Path to a json/yaml context file or an inline JSON object.",
+                    )
+                ]
+            )
+        ]
+
+
+class EmbryoHatchSubparser(Subparser):
+    def perform(self, args):
+        self.args = args
+        incubator = Incubator(
+            embryo_name=args.embryo,
+            destination=args.destination,
+            context=self.load_context(),
+        )
+        return incubator.hatch()
 
     def load_context_arg(self):
         """
         This loads the --context arg into a dict and returns it.
         """
+
         def has_ext(filename, extensions):
             return any(
                 filename.lower().endswith('.' + ext.lower())
@@ -74,9 +92,7 @@ class EmbryoProg(Prog):
         together with the dict loaded from the --context argument. The return
         value of this function is the context object passed into the loader.
         """
-        non_context_arg_names = {
-            'action', 'context', 'destination', 'embryo'
-        }
+        non_context_arg_names = {'action', 'context', 'destination', 'embryo'}
 
         data_from_cli_kwargs = {
             k: getattr(self.args, k)
@@ -92,22 +108,6 @@ class EmbryoProg(Prog):
         context = DictUtils.unflatten_keys(context)
 
         return context
-
-    def create(self):
-        incubator = Incubator(
-            embryo_name=self.args.embryo,
-            destination=self.args.destination,
-            context=self.load_context(),
-        )
-        return incubator.hatch()
-
-
-def main():
-    """
-    Main
-    """
-    prog = EmbryoProg(data=PROG)
-    prog.run()
 
 
 if __name__ == "__main__":

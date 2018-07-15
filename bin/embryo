@@ -10,10 +10,7 @@ from embryo import Incubator
 
 
 def main():
-    """
-    My very own Embryo Program
-    """
-    prog = EmbryoProgam(
+    prog = EmbryoProgram(
         name="embryo",
         version="0",
         tagline="wat",
@@ -21,28 +18,32 @@ def main():
     prog.run()
 
 
-class EmbryoProgam(CliProgram):
+class EmbryoProgram(CliProgram):
+    """
+    My very own Embryo Program
+    """
+
     def subparsers(self):
         return [
-            EmbryoHatchSubparser(
+            HatchSubparser(
                 name='hatch',
-                help='Hatch a new embryo',
+                usage='Hatch a new embryo',
                 defaults=dict(action='hatch'),
                 args=[
                     Arg(
                         flags=('embryo', ),
-                        type=str,
-                        help="Name of the embryo to hatch."
+                        dtype=str,
+                        usage="Name of the embryo to hatch."
                     ),
                     Arg(
                         flags=('-d', '--destination'),
-                        type=str,
+                        dtype=str,
                         default='.',
-                        help="Destination directory."
+                        usage="Destination directory."
                     ),
                     Arg(
                         flags=('-c', '--context'),
-                        help=
+                        usage=
                         "Path to a json/yaml context file or an inline JSON object.",
                     )
                 ]
@@ -50,12 +51,12 @@ class EmbryoProgam(CliProgram):
         ]
 
 
-class EmbryoHatchSubparser(Subparser):
-    def perform(self, args):
+class HatchSubparser(Subparser):
+    def perform(self, program):
         incubator = Incubator(
-            embryo_name=args.embryo,
-            destination=args.destination,
-            context=self.load_context(args),
+            embryo_name=program.args.embryo,
+            destination=program.args.destination,
+            context=self.load_context(program.args),
         )
         return incubator.hatch()
 

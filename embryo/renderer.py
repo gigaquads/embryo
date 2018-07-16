@@ -236,9 +236,9 @@ class Renderer(object):
                 say('Creating directory: {path}', path=path)
                 os.makedirs(path)
         for fpath in self.fpaths:
-            path = join(self.root, fpath)
-            if not os.path.isfile(fpath) and not fpath.endswith('.embryo'):
-                say('Touching file: {path}', path=fpath)
+            path = join(self.root, './{}'.format(fpath))
+            if not os.path.isfile(path) and not path.endswith('.embryo'):
+                say('Touching file: {path}', path=path)
                 open(path, 'a').close()
 
     def _render_file(

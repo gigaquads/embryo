@@ -59,7 +59,9 @@ class EmbryoGenerator(object):
 
         if hooks.pre_create:
             print('>>> Running pre_create hook...')
-            hooks.pre_create(context)
+            pre_create_context = hooks.pre_create(context)
+            if pre_create_context:
+                context.update(pre_create_context)
 
         tree = self.load_tree_yaml(name, context)
         templates = self.load_templates(name, context)

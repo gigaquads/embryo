@@ -15,11 +15,21 @@ from appyratus.validation import Schema
 from appyratus.validation import fields
 from appyratus.types import Yaml
 
-from .project import Project
+from .renderer import Renderer
 from .environment import build_env
 from .exceptions import TemplateLoadFailed
-from .constants import EMBRYO_FILE_NAMES
+from .constants import (
+    EMBRYO_FILE_NAMES,
+    RE_RENDERING_EMBRYO,
+    NESTED_EMBRYO_KEY,
+)
 from .relationship import Relationship, RelationshipManager
+from .filesystem import (
+    FileTypeAdapter,
+    JsonAdapter,
+    YamlAdapter,
+    FileManager,
+)
 from .dot import DotFileManager
 from .utils import (
     say,
@@ -28,6 +38,7 @@ from .utils import (
     resolve_embryo_path,
     import_embryo_class,
     build_embryo_search_path,
+    get_nested_dict,
 )
 
 
@@ -57,41 +68,34 @@ class Embryo(object):
     Schema = ContextSchema
 
     def __init__(self, path: str, context: Dict):
-        self._path = path
-        self._context = self._load_context(context)
-        self._schema = self.context_schema()
+        self.path = path
+
+        self.jinja_env = build_env()
+        self.context = self._build_context(context)
+        self.schema = self.context_schema()
+        self.renderer = Renderer()
+        self.dot = DotFileManager()
+        self.fs = FileManager()
+
+        self.related = {}
+        self.nested = defaultdict(list)
+        self.loaded_context = None
+        self.dumped_context = None
         self.templates = None
         self.tree = None
-
-        # the jinja2 env is used in rendering filepath template strings
-        # as well as the templatized tree.yml file.
-        self.jinja_env = build_env()
-
-        # the DotFileManager loads embryos corresponding to the contents of
-        # .embryo/context.json files and provides an interface to them.
-        self.dot = DotFileManager()
-
-        # Mapping from embryo name to an Embrryo object or List[Embryo].
-        # This dict is initialized by a RelationshipManager in pre_create.
-        self._related = {}
 
     def __repr__(self):
         return '<{class_name}({embryo_path})>'.format(
             class_name=self.__class__.__name__,
-            embryo_path=self._path,
+            embryo_path=self.path,
         )
 
     @property
-    def related(self):
-        return self._related
-
-    @property
-    def context(self):
-        return self._context
-
-    @property
-    def path(self):
-        return self._path
+    def adapters(self) -> List[FileTypeAdapter]:
+        return [
+            JsonAdapter(indent=2, sort_keys=True),
+            YamlAdapter(multi=True),
+        ]
 
     @property
     def name(self):
@@ -114,47 +118,137 @@ class Embryo(object):
         """
         return ContextSchema()
 
-    def pre_create(self) -> None:
+    def pre_create(self, context) -> None:
         """
-        Perform any side-effects or preprocessing before the embryo Project and
+        Perform any side-effects or preprocessing before the embryo Renderer and
         related objects are created. if a context_schema exists, the `context`
         argument is the marshaled result of calling `schema.load(context)`.
         This method should be overriden.
         """
 
-    def on_create(self, project: Project) -> None:
+    def on_create(self, context) -> None:
         """
-        This logic follows the rendering of the tree.yml and templatized file
-        paths. At this point, we have access to stored filesystem context.
+        Here, we assume that the context data is finished being prepared for
+        dispatch to the template renderer. We can access the fully-loaded tree
+        and file data provided by the FileManager
         """
 
-    def post_create(self, project: Project) -> None:
+    def post_create(self, context) -> None:
         """
-        Post_create is called upon the successful creation of the Project
+        Post_create is called upon the successful creation of the Renderer
         object. Any side-effects following the creation of the embryo in the
         filesystem can be performed here. This method should be overriden.
         """
 
-    def apply_pre_create(self) -> None:
+    def persist(self):
         """
-        This method should be called only by Incubator objects.
+        Write this embryo's context to its .embryo/context.json file.
         """
+        self.dot.persist(self)
+
+    def hatch(self) -> None:
+        """
+        This method loads pre-rendered templates. This includes file templates
+        in the templates/ dir as well as the tree.yml file, which is also a
+        template.
+        """
+        say('Stimulating embryonic growth sequence...')
+        say('Hatching Embryo: "{name}"', name=self.name)
+        say('Embryo Location: {path}', path=self.path)
+        say('Destination: {dest}', dest=self.destination)
+
+        # Load all Embryo objects discovered in
+        # context.json files present in the filesystem,
+        # relative to this embryo's destination directory.
         self.dot.load(self)
 
-        # Load the related dot-embryos and add them to context for the sake of
-        # accessing inherited data, like a project's name stored in a
-        # previously-run "new project" Embryo context.
-        self._related = RelationshipManager().load(self)
-
         say('Running pre-create method...')
-        self.pre_create()
+        self.pre_create(self.context)
 
-    def apply_on_create(self, project: Project) -> None:
+        # Now there can be no more edits to self.context,
+        # so we load the raw context dict and dump it into
+        # the templates for rendering.
+        self.loaded_context = self._load_context()
+        self.dumped_context = self._dump_context()
+
+        # Generates a dict that maps relationship name
+        # to Embryo object, found by the dot file manager,
+        # using Relationship ctor arguments.
+        self.related = RelationshipManager().load(self)
+
+        # Render the tree.yml template.
+        self.tree = self._render_tree()
+
+        # Load raw template strings into dict with absolute
+        # file paths as keys.
+        self.templates = self._load_templates()
+
+        # Render the files declared in the tree.
+        self.renderer.render(self)
+
+        # Read files that already exist in filesystem using
+        # available filetype adapters.
+        self.fs.read(self)
+
+        # Resolve and instantiate Embryo objects
+        # "nested" in tree.yml.
+        self._load_nested_embryos()
+
         say('Running on-create method...')
-        self.on_create(project)
+        self.on_create(self.loaded_context)
 
-        # Here is where we finally call load, following all places where the
-        # running context object could have been dynamically modified.
+        # Write files loaded by FileManager back to disk,
+        # using available filetype adapters.
+        self.fs.write()
+
+        # Call hatch() on all nested embryos in
+        # depth-first traversal.
+        self._hatch_nested_embryos()
+
+        say('Running post-create method...')
+        self.post_create(self.loaded_context)
+
+    def _load_nested_embryos(self):
+        search_path = build_embryo_search_path()
+
+        def load_recursive(nodes, path):
+            if not nodes:
+                return
+            for obj in nodes:
+                if isinstance(obj, dict):
+                    key = list(obj.keys())[0]
+                    if key == NESTED_EMBRYO_KEY:
+                        match = RE_RENDERING_EMBRYO.match(obj[key])
+                        embryo_name, context_path = match.groups()
+                        dest_dir = os.path.abspath(path)
+                        load_embryo(embryo_name, context_path, dest_dir)
+                    else:
+                        child_nodes = obj[key]
+                        load_recursive(child_nodes, os.path.join(path, key))
+
+        def load_embryo(embryo_name, context_path, dest_dir):
+            assert self.loaded_context
+            say('Hatching nested embryo: {name}...', name=embryo_name)
+            context = get_nested_dict(self.loaded_context, context_path).copy()
+            context['embryo'] = self.context['embryo']
+            embryo_path = resolve_embryo_path(search_path, embryo_name)
+            embryo_factory = import_embryo_class(embryo_path)
+            embryo = embryo_factory(embryo_path, context)
+            self.nested[dest_dir].append(embryo)
+
+        # this loads the embryos into self.nested
+        load_recursive(self.tree, '')
+
+    def _hatch_nested_embryos(self):
+        from embryo.incubator import Incubator
+        for embryo_list in self.nested.values():
+            for embryo in embryo_list:
+                incubator = Incubator.from_embryo(embryo)
+                incubator.hatch()
+
+    def _load_context(self):
+        assert self.context is not None
+        retval = {}
         schema = self.context_schema()
         if schema:
             result = schema.load(self.context)
@@ -164,33 +258,20 @@ class Embryo(object):
                     errors=json.dumps(result.errors, indent=2, sort_keys=True)
                 )
                 exit(-1)
-            self._context = result.data
+            retval.update(result.data)
+        retval['embryo'] = self.context['embryo']
+        return retval
 
-        # now that we have the loaded context, dump it to build the tree
-        dumped_context = self.dump()
-
-        self.tree = self._load_tree(dumped_context)
-        self.templates = self._load_templates(dumped_context)
-
-    def dump(self):
+    def _dump_context(self):
         """
         Dump schema to context and update with related attributes
-
-        XXX Currently `dump` is called twice when creating an embryo.. this can
-        be optimized at some point with that in consideration.
         """
-        dumped_context = self._schema.dump(self.context).data
-        dumped_context.update(self._related)
+        assert self.loaded_context is not None
+        dumped_context = self.schema.dump(self.loaded_context).data
+        dumped_context.update(self.related)
         return dumped_context
 
-    def apply_post_create(self, project: Project) -> None:
-        """
-        This method should be called only by Incubator objects.
-        """
-        say('Running post-create method...')
-        self.post_create(project)
-
-    def _load_context(self, context: Dict = None) -> Dict:
+    def _build_context(self, context: Dict = None) -> Dict:
         """
         Context can come from three places and is merged into a computed dict
         in the following order:
@@ -199,7 +280,7 @@ class Embryo(object):
             2. Variables provided on the commandline interface, like --foo 1.
             3. Data provided from a file, named in the --context arg.
         """
-        path = self._path
+        path = self.path
         fpath = build_embryo_filepath(path, 'context')
 
         dynamic_context = context
@@ -211,14 +292,19 @@ class Embryo(object):
 
         return merged_context
 
-    def _load_templates(self, context: Dict):
+    def _load_templates(self):
         """
         Read all template file. Each template string is stored in a dict, keyed
         by the relative path at which it exists, relative to the templates root
         directory. The file paths themselves are templatized and are therefore
         rendered as well in this procedure.
         """
-        templates_path = build_embryo_filepath(self._path, 'templates')
+        assert self.dumped_context is not None
+
+        say('Loading templates...')
+
+        context = self.dumped_context
+        templates_path = build_embryo_filepath(self.path, 'templates')
         templates = {}
 
         if not os.path.isdir(templates_path):
@@ -262,13 +348,21 @@ class Embryo(object):
 
         return templates
 
-    def _load_tree(self, context: Dict) -> Dict:
+    def _render_tree(self) -> Dict:
         """
         Read and deserialized the file system tree yaml file as well as render
         it, as it is a templatized file.
         """
-        fpath = build_embryo_filepath(self._path, 'tree')
+        assert self.dumped_context is not None
+
+        say('Rendering tree.yml...')
+
+        context = self.dumped_context.copy()
+        context.update(self.related)
+        fpath = build_embryo_filepath(self.path, 'tree')
+
         with open(fpath) as tree_file:
             tree_yml_tpl = tree_file.read()
             tree_yml = self.jinja_env.from_string(tree_yml_tpl).render(context)
-            return yaml.load(tree_yml)
+            tree = yaml.load(tree_yml)
+            return tree

@@ -70,12 +70,14 @@ def resolve_embryo_path(search_path: List[str], name: str) -> str:
     raise EmbryoNotFound(name)
 
 
-def get_nested_dict(root: Dict, dotted_path: str) -> Dict:
+def get_nested_dict(root: Dict, dotted_path: str = None) -> Dict:
     """
     Return a nested dictionary, located by its dotted path. If the dict is
     {a: {b: {c: 1}}} and the path is a.b, then {c: 1} will be returned.
     """
     d = root
+    if not dotted_path:
+        return root
     for k in dotted_path.split('.'):
         d = d[k]
     return d
@@ -84,7 +86,7 @@ def get_nested_dict(root: Dict, dotted_path: str) -> Dict:
 def import_embryo_class(embryo_path: str) -> 'Embryo':
     """
     The actual embryo is a Python object that contains various functions
-    related to the generation of the project, like pre- and post-create
+    related to the generation of the renderer, like pre- and post-create
     hooks. This method loads and returns an instance.
     """
     from embryo.embryo import Embryo
@@ -92,7 +94,7 @@ def import_embryo_class(embryo_path: str) -> 'Embryo':
     # absolute file path to the embryo directory
     abs_filepath = build_embryo_filepath(embryo_path, 'embryo')
 
-    embryo_class = None   # <- return value
+    embryo_class = None    # <- return value
 
     if os.path.isfile(abs_filepath):
         # imprt the embryo.py module

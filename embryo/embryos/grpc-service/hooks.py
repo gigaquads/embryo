@@ -5,7 +5,7 @@ import subprocess as sp
 from pybiz.grpc import GrpcDriver
 
 
-def pre_create(project, context, tree, templates):
+def pre_create(renderer, context, tree, templates):
     dest = context['args']['dest']
     command = ' '.join([
         'python -m grpc_tools.protoc', '-I {dest}', '--python_out={dest}',

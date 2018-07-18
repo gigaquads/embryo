@@ -14,33 +14,33 @@ class TestEmbryoGenerator(object):
         context = {'a': 1}
         loaded_context = dict(context)
 
-        project = MagicMock()
+        renderer = MagicMock()
 
         embryo = MagicMock()
         embryo.apply_pre_create.return_value = loaded_context
 
         generator = MagicMock()
-        generator._build_project = lambda *args: EmbryoGenerator._build_project(generator, *args)
+        generator._build_renderer = lambda *args: EmbryoGenerator._build_renderer(generator, *args)
         generator._load_context = lambda *args: EmbryoGenerator._load_context(generator, *args)
 
         if exists_embryo_object:
             generator._load_embryo.return_value = embryo
 
             with patch('embryo.create.json'):
-                with patch('embryo.create.Project') as Project:
-                    Project.return_value = project
+                with patch('embryo.create.Renderer') as Renderer:
+                    Renderer.return_value = renderer
                     with patch('embryo.create.Yaml') as Yaml:
                         Yaml.from_file.return_value = {}
                         EmbryoGenerator.create(generator, name, dest, context)
 
             embryo.apply_pre_create.assert_called_once_with(context)
-            embryo.apply_post_create.assert_called_once_with(project, loaded_context)
+            embryo.apply_post_create.assert_called_once_with(renderer, loaded_context)
         else:
             generator._load_embryo.return_value = None
 
             with patch('embryo.create.json'):
-                with patch('embryo.create.Project') as Project:
-                    Project.return_value = project
+                with patch('embryo.create.Renderer') as Renderer:
+                    Renderer.return_value = renderer
                     with patch('embryo.create.Yaml') as Yaml:
                         Yaml.from_file.return_value = {}
                         EmbryoGenerator.create(generator, name, dest, context)

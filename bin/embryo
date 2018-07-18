@@ -2,51 +2,69 @@
 # encoding=utf8
 # vim: set filetype=python
 
-from appyratus.util.argz import Prog, Subparser, Arg
+from appyratus.cli import CliProgram, Subparser, Arg
 from appyratus.util import DictUtils
-from appyratus.types import Yaml
+from appyratus.io import Yaml
 
 from embryo import Incubator
 
 
-PROG = dict(
-    prog="embryo",
-    name="Embryo",
-    version="0",
-    tagline="wat",
-)
-
-
-class EmbryoCreateSubparser(Subparser):
-    name = 'create'
-    help = 'generate new embryo'
-    defaults = dict(action='create')
-
-    embryo_arg = Arg(
-        flags=('embryo', ),
-        type=str,
-        help="Name of the embryo to hatch."
+def main():
+    prog = EmbryoProgram(
+        name="embryo",
+        version="0",
+        tagline="wat",
     )
-    dest_arg = Arg(
-        flags=('-d', '--destination'),
-        type=str,
-        default='.',
-        help=
-        "Destination directory."
-    )
-    context_arg = Arg(
-        flags=('-c', '--context'),
-        help="Path to a json/yaml context file or an inline JSON object.",
-    )
+    prog.run()
 
 
-class EmbryoProg(Prog):
-    create_subparser = EmbryoCreateSubparser()
+class EmbryoProgram(CliProgram):
+    """
+    My very own Embryo Program
+    """
 
-    def load_context_arg(self):
+    def subparsers(self):
+        return [
+            HatchSubparser(
+                name='hatch',
+                usage='Hatch a new embryo',
+                defaults=dict(action='hatch'),
+                args=[
+                    Arg(
+                        flags=('embryo', ),
+                        dtype=str,
+                        usage="Name of the embryo to hatch."
+                    ),
+                    Arg(
+                        flags=('-d', '--destination'),
+                        dtype=str,
+                        default='.',
+                        usage="Destination directory."
+                    ),
+                    Arg(
+                        flags=('-c', '--context'),
+                        usage=
+                        "Path to a json/yaml context file or an inline JSON object.",
+                    )
+                ]
+            )
+        ]
+
+
+class HatchSubparser(Subparser):
+    def perform(self, program):
+        incubator = Incubator(
+            embryo_name=program.args.embryo,
+            destination=program.args.destination,
+            context=self.load_context(program.args),
+        )
+        return incubator.hatch()
+
+    def load_context_arg(self, cli_args_context):
         """
         This loads the --context arg into a dict and returns it.
         """
+
         def has_ext(filename, extensions):
             return any(
                 filename.lower().endswith('.' + ext.lower())
@@ -55,8 +73,8 @@ class EmbryoProg(Prog):
 
         context = {}
 
-        if self.args.context:
-            context_str = self.args.context
+        if cli_args_context:
+            context_str = cli_args_context
             if has_ext(context_str, ['json']):
                 with open(context_filepath) as context_file:
                     context = ujson.load(context_file)
@@ -68,23 +86,21 @@ class EmbryoProg(Prog):
 
         return context
 
-    def load_context(self):
+    def load_context(self, cli_args):
         """
         Here, we convert the commandline arguments into a dict and merge it
         together with the dict loaded from the --context argument. The return
         value of this function is the context object passed into the loader.
         """
-        non_context_arg_names = {
-            'action', 'context', 'destination', 'embryo'
-        }
+        non_context_arg_names = {'action', 'context', 'destination', 'embryo'}
 
         data_from_cli_kwargs = {
-            k: getattr(self.args, k)
-            for k in dir(self.args)
+            k: getattr(cli_args, k)
+            for k in dir(cli_args)
             if not ((k in non_context_arg_names) or k.startswith('_'))
         }
 
-        data_from_context_arg = self.load_context_arg()
+        data_from_context_arg = self.load_context_arg(cli_args.context)
 
         context = {}
         context.update(data_from_cli_kwargs)
@@ -92,22 +108,6 @@ class EmbryoProg(Prog):
         context = DictUtils.unflatten_keys(context)
 
         return context
-
-    def create(self):
-        incubator = Incubator(
-            embryo_name=self.args.embryo,
-            destination=self.args.destination,
-            context=self.load_context(),
-        )
-        return incubator.hatch()
-
-
-def main():
-    """
-    Main
-    """
-    prog = EmbryoProg(data=PROG)
-    prog.run()
 
 
 if __name__ == "__main__":

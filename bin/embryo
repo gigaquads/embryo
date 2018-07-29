@@ -28,7 +28,6 @@ class EmbryoProgram(CliProgram):
             HatchSubparser(
                 name='hatch',
                 usage='Hatch a new embryo',
-                defaults=dict(action='hatch'),
                 args=[
                     Arg(
                         flags=('embryo', ),
@@ -54,9 +53,9 @@ class EmbryoProgram(CliProgram):
 class HatchSubparser(Subparser):
     def perform(self, program):
         incubator = Incubator(
-            embryo_name=program.args.embryo,
-            destination=program.args.destination,
-            context=self.load_context(program.args),
+            embryo_name=program.cli_args.embryo,
+            destination=program.cli_args.destination,
+            context=self.load_context(program.cli_args),
         )
         return incubator.hatch()
 

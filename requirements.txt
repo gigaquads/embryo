@@ -3,6 +3,7 @@ jinja2
 yapf
 gitpython
 ujson
+appyratus>=0b1
 
 pytest
 ipdb

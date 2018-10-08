@@ -13,6 +13,9 @@ setup = RealSetup(
     author='Gigaquads',
     author_email='notdsk@gmail.com',
     url='https://github.com/gigaquads/embryo.git',
-    classifiers=['python3', 'mit-license']
+    classifiers=['python3', 'mit-license'],
+    dependency_links=[
+        'https://github.com/gigaquads/appyratus/tarball/master#egg=appyratus-0b1'
+    ]
 )
 setup.run()

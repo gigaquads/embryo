@@ -1,7 +1,0 @@
----
-{% if schema_fields %}
-{% for field in schema_fields %}
-{{ field['name'] }}: 
-{% endfor %}
-{% endif %}
-...

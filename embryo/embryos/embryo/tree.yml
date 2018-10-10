@@ -1,7 +1,0 @@
----
-- {{ name|dash }}/:
-  - context.yml
-  - embryo.py
-  - templates/:
-  - tree.yml
-...

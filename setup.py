@@ -2,20 +2,17 @@
 # encoding=utf-8
 
 import os
+from setuptools import setup
 
-from appyratus.util import RealSetup
-
-setup = RealSetup(
-    path=os.path.abspath(os.path.dirname(__file__)),
+setup(
     name='embryo',
     version='1.0',
     description='Embryo Renderer Scaffold Engine',
     author='Gigaquads',
     author_email='notdsk@gmail.com',
     url='https://github.com/gigaquads/embryo.git',
-    classifiers=['python3', 'mit-license'],
     dependency_links=[
         'https://github.com/gigaquads/appyratus/tarball/master#egg=appyratus-0b1'
     ]
+    #classifiers=['python3', 'mit-license']
 )
-setup.run()

@@ -6,7 +6,7 @@ from setuptools import setup
 
 setup(
     name='embryo',
-    version='1.0',
+    version='0b1',
     description='Embryo Renderer Scaffold Engine',
     author='Gigaquads',
     author_email='notdsk@gmail.com',

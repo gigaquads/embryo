@@ -12,7 +12,7 @@ setup(
     author_email='notdsk@gmail.com',
     url='https://github.com/gigaquads/embryo.git',
     dependency_links=[
-        'https://github.com/gigaquads/appyratus/tarball/master#egg=appyratus-0b1'
+        'https://github.com/gigaquads/appyratus/tarball/master#egg=appyratus'
     ]
     #classifiers=['python3', 'mit-license']
 )

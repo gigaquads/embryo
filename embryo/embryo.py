@@ -13,7 +13,7 @@ from jinja2.exceptions import TemplateSyntaxError
 
 from appyratus.validation import Schema
 from appyratus.validation import fields
-from appyratus.types import Yaml
+from appyratus.io import Yaml
 
 from .renderer import Renderer
 from .environment import build_env
@@ -26,6 +26,7 @@ from .constants import (
 from .relationship import Relationship, RelationshipManager
 from .filesystem import (
     FileTypeAdapter,
+    IniAdapter,
     JsonAdapter,
     YamlAdapter,
     FileManager,
@@ -94,6 +95,7 @@ class Embryo(object):
     def adapters(self) -> List[FileTypeAdapter]:
         return [
             JsonAdapter(indent=2, sort_keys=True),
+            IniAdapter(),
             YamlAdapter(multi=True),
         ]
 

@@ -66,7 +66,7 @@ class YamlAdapter(FileTypeAdapter):
 class IniAdapter(FileTypeAdapter):
     @property
     def extensions(self) -> set:
-        return {'cfg'}
+        return {'ini', 'cfg'}
 
     def read(self, abs_file_path: str) -> dict:
         return Ini.from_file(file_path=abs_file_path)

@@ -137,7 +137,7 @@ class BiopsySubparser(Subparser):
                     '--{} {}'.format(k, v) for k, v in flat_context.items()
                 ]
                 command = 'embryo {} {} {}'.format(
-                    embryo, embryo_data['action'], ' '.join(context_args)
+                    embryo_data['action'], embryo, ' '.join(context_args)
                 )
                 timestamp = embryo_data['timestamp']
                 commands.append((timestamp, command))

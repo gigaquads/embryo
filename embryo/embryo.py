@@ -13,7 +13,7 @@ from jinja2.exceptions import TemplateSyntaxError
 
 from appyratus.validation import Schema
 from appyratus.validation import fields
-from appyratus.types import Yaml
+from appyratus.io import Yaml
 
 from .renderer import Renderer
 from .environment import build_env
@@ -26,7 +26,9 @@ from .constants import (
 from .relationship import Relationship, RelationshipManager
 from .filesystem import (
     FileTypeAdapter,
+    IniAdapter,
     JsonAdapter,
+    TextAdapter,
     YamlAdapter,
     FileManager,
 )
@@ -94,6 +96,8 @@ class Embryo(object):
     def adapters(self) -> List[FileTypeAdapter]:
         return [
             JsonAdapter(indent=2, sort_keys=True),
+            IniAdapter(),
+            TextAdapter(),
             YamlAdapter(multi=True),
         ]
 
@@ -123,7 +127,7 @@ class Embryo(object):
         Perform any side-effects or preprocessing before the embryo Renderer and
         related objects are created. if a context_schema exists, the `context`
         argument is the marshaled result of calling `schema.load(context)`.
-        This method should be overriden.
+        This method should be overridden.
         """
 
     def on_create(self, context) -> None:
@@ -137,7 +141,7 @@ class Embryo(object):
         """
         Post_create is called upon the successful creation of the Renderer
         object. Any side-effects following the creation of the embryo in the
-        filesystem can be performed here. This method should be overriden.
+        filesystem can be performed here. This method should be overridden.
         """
 
     def persist(self):
@@ -271,7 +275,7 @@ class Embryo(object):
         dumped_context.update(self.related)
         return dumped_context
 
-    def _build_context(self, context: Dict = None) -> Dict:
+    def _build_context(self, context: Dict=None) -> Dict:
         """
         Context can come from three places and is merged into a computed dict
         in the following order:

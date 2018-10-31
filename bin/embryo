@@ -3,10 +3,13 @@
 # vim: set filetype=python
 
 from appyratus.cli import CliProgram, Subparser, Arg
+from appyratus.io import Yaml, Json
+from appyratus.time import from_timestamp
 from appyratus.util import DictUtils
-from appyratus.io import Yaml
 
 from embryo import Incubator
+
+context = Json.load_file('.embryo/context.json')
 
 
 def main():
@@ -46,6 +49,10 @@ class EmbryoProgram(CliProgram):
                         "Path to a json/yaml context file or an inline JSON object.",
                     )
                 ]
+            ),
+            BiopsySubparser(
+                name='biopsy',
+                usage=''
             )
         ]
 
@@ -107,6 +114,37 @@ class HatchSubparser(Subparser):
         context = DictUtils.unflatten_keys(context)
 
         return context
+
+class BiopsySubparser(Subparser):
+    def perform(self, program):
+        embryo_commands = self.parse_context(context)
+        embryo_commands.sort(key=lambda tup: tup[0])
+        used_commands = []
+        for timestamp, command in embryo_commands:
+            if command in used_commands:
+                continue
+            used_commands.append(command)
+            print('{} {}'.format(from_timestamp(timestamp), command))
+
+    def parse_context(self, context):
+        commands = []
+        for embryo, contexts in context.items():
+            for context in contexts:
+                embryo_data = context['embryo']
+                del context['embryo']
+                flat_context = DictUtils.flatten_keys(context)
+                context_args = [
+                    '--{} {}'.format(k, v) for k, v in flat_context.items()
+                ]
+                command = 'embryo {} {} {}'.format(
+                    embryo_data['action'], embryo, ' '.join(context_args)
+                )
+                timestamp = embryo_data['timestamp']
+                commands.append((timestamp, command))
+
+        return commands
+
+
 
 
 if __name__ == "__main__":

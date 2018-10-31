@@ -3,7 +3,7 @@ import json
 import ujson
 
 from appyratus.json import JsonEncoder
-from appyratus.io import Yaml
+from appyratus.io import Yaml, Ini, Text
 
 from .utils import say
 
@@ -61,6 +61,30 @@ class YamlAdapter(FileTypeAdapter):
 
     def write(self, abs_file_path: str, file_obj: dict) -> None:
         Yaml.to_file(file_path=abs_file_path, data=file_obj, multi=self._multi)
+
+
+class IniAdapter(FileTypeAdapter):
+    @property
+    def extensions(self) -> set:
+        return {'ini', 'cfg'}
+
+    def read(self, abs_file_path: str) -> dict:
+        return Ini.from_file(file_path=abs_file_path)
+
+    def write(self, abs_file_path: str, data) -> None:
+        Ini.to_file(file_path=abs_file_path, data=data)
+
+
+class TextAdapter(FileTypeAdapter):
+    @property
+    def extensions(self) -> set:
+        return {'txt'}
+
+    def read(self, abs_file_path: str) -> str:
+        return Text.from_file(file_path=abs_file_path)
+
+    def write(self, abs_file_path: str, contents: str) -> None:
+        Text.to_file(file_path=abs_file_path, contents=contents)
 
 
 class FileMetadata(object):

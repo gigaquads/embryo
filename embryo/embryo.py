@@ -11,8 +11,7 @@ from collections import defaultdict
 from jinja2 import Template
 from jinja2.exceptions import TemplateSyntaxError
 
-from appyratus.validation import Schema
-from appyratus.validation import fields
+from appyratus.schema import Schema, fields
 from appyratus.io import Yaml
 
 from .renderer import Renderer
@@ -47,16 +46,16 @@ from .utils import (
 class ContextSchema(Schema):
     """
     Returns an instance of a Schema class, which is applied to the context
-    dict, using schema.load(context). A return value of None skips this
+    dict, using schema.process(context). A return value of None skips this
     process, i.e. it is optional.
     """
-    embryo = fields.Object(
+    embryo = fields.Nested(
         {
             'timestamp': fields.DateTime(),
-            'name': fields.Str(),
-            'action': fields.Str(),
-            'path': fields.Str(),
-            'destination': fields.Str(),
+            'name': fields.String(),
+            'action': fields.String(),
+            'path': fields.String(),
+            'destination': fields.String(),
         }
     )
 
@@ -117,7 +116,7 @@ class Embryo(object):
     def context_schema():
         """
         Returns an instance of a Schema class, which is applied to the context
-        dict, using schema.load(context). A return value of None skips this
+        dict, using schema.process(context). A return value of None skips this
         process, i.e. it is optional.
         """
         return ContextSchema()
@@ -126,7 +125,7 @@ class Embryo(object):
         """
         Perform any side-effects or preprocessing before the embryo Renderer and
         related objects are created. if a context_schema exists, the `context`
-        argument is the marshaled result of calling `schema.load(context)`.
+        argument is the marshaled result of calling `schema.process(context)`.
         This method should be overridden.
         """
 
@@ -255,14 +254,14 @@ class Embryo(object):
         retval = {}
         schema = self.context_schema()
         if schema:
-            result = schema.load(self.context)
-            if result.errors:
+            result, errors = schema.process(self.context)
+            if errors:
                 shout(
                     'Failed to load context: {errors}',
-                    errors=json.dumps(result.errors, indent=2, sort_keys=True)
+                    errors=json.dumps(errors, indent=2, sort_keys=True)
                 )
                 exit(-1)
-            retval.update(result.data)
+            retval.update(result)
         retval['embryo'] = self.context['embryo']
         return retval
 
@@ -271,7 +270,7 @@ class Embryo(object):
         Dump schema to context and update with related attributes
         """
         assert self.loaded_context is not None
-        dumped_context = self.schema.dump(self.loaded_context).data
+        dumped_context, errors = self.schema.process(self.loaded_context)
         dumped_context.update(self.related)
         return dumped_context
 

@@ -45,7 +45,7 @@ class Renderer(object):
         self.tree = None
         self.jinja2_templates = None
 
-    def render(self, embryo: 'Embryo', style_config: Dict = None) -> None:
+    def render(self, embryo: 'Embryo', style_config: Dict=None) -> None:
         """
         # Args
         - embryo: the Embryo object
@@ -121,7 +121,7 @@ class Renderer(object):
     def _analyze_embryo(self):
         self._analyze_tree(self.embryo.tree)
 
-    def _analyze_tree(self, tree, parent_path: str = ''):
+    def _analyze_tree(self, tree, parent_path: str=''):
         """
         Initializes `directory_paths`, `fpaths`, and `template_meta`. It
         returns a dict-based tree structure.
@@ -246,7 +246,7 @@ class Renderer(object):
         abs_fpath: str,
         template_name: str,
         context: dict,
-        style_config: dict = None
+        style_config: dict=None
     ) -> None:
         """
         Renders a template to a file, provided that the `abs_fpath` provided is

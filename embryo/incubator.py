@@ -67,7 +67,7 @@ class Incubator(object):
         context.update({
             'embryo': {
                 'name': embryo_name,
-                'destination': os.path.abspath(destination),
+                'destination': os.path.abspath(os.path.expanduser(destination)),
                 'timestamp': utc_now(),
                 'action': 'hatch',
             }
@@ -85,10 +85,14 @@ class Incubator(object):
         # Import the Embryo class from embryo dir and instantaite it.
         self._embryo_class = import_embryo_class(self._embryo_path)
         self._embryo = self._embryo_class(self._embryo_path, context)
+    
+    @property
+    def embryo(self):
+        return self._embryo
 
     def hatch(self) -> None:
         """
         This takes all the prepared data structures and uses them to create a
         Renderer and build it. The build renderer is returned.
         """
-        self._embryo.hatch()
+        self.embryo.hatch()

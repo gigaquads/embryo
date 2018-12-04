@@ -12,7 +12,7 @@ from jinja2 import Template
 from jinja2.exceptions import TemplateSyntaxError
 
 from appyratus.schema import Schema, fields
-from appyratus.io import Yaml
+from appyratus.files import Yaml
 
 from .renderer import Renderer
 from .environment import build_env

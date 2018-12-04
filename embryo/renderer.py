@@ -11,7 +11,7 @@ from copy import deepcopy
 
 from jinja2 import Template
 from yapf.yapflib.yapf_api import FormatCode
-from appyratus.io import Yaml
+from appyratus.files import Yaml
 from appyratus.json import JsonEncoder
 
 from .constants import (

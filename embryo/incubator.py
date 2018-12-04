@@ -5,7 +5,7 @@ import json
 from typing import Dict, List
 
 from appyratus.json import JsonEncoder
-from appyratus.time import utc_now
+from appyratus.utils import TimeUtils
 
 from embryo import Renderer
 
@@ -68,7 +68,7 @@ class Incubator(object):
             'embryo': {
                 'name': embryo_name,
                 'destination': os.path.abspath(os.path.expanduser(destination)),
-                'timestamp': utc_now(),
+                'timestamp': TimeUtils.utc_now(),
                 'action': 'hatch',
             }
         })

@@ -3,9 +3,8 @@
 # vim: set filetype=python
 
 from appyratus.cli import CliProgram, Subparser, Arg
-from appyratus.io import Yaml, Json
-from appyratus.time import from_timestamp
-from appyratus.util import DictUtils
+from appyratus.files import Yaml, Json
+from appyratus.utils import DictUtils, TimeUtils
 
 from embryo import Incubator
 
@@ -124,7 +123,7 @@ class BiopsySubparser(Subparser):
             if command in used_commands:
                 continue
             used_commands.append(command)
-            print('{} {}'.format(from_timestamp(timestamp), command))
+            print('{} {}'.format(TimeUtils.from_timestamp(timestamp), command))
 
     def parse_context(self, context):
         commands = []

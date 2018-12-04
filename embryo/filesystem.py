@@ -3,7 +3,7 @@ import json
 import ujson
 
 from appyratus.json import JsonEncoder
-from appyratus.io import Yaml, Ini, Text
+from appyratus.files import Yaml, Ini, Text
 
 from .utils import say
 

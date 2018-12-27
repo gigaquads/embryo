@@ -12,7 +12,7 @@ from jinja2 import Template
 from jinja2.exceptions import TemplateSyntaxError
 
 from appyratus.schema import Schema, fields
-from appyratus.files import Yaml
+from appyratus.files import File, Yaml
 
 from .renderer import Renderer
 from .environment import build_env
@@ -24,9 +24,13 @@ from .constants import (
 )
 from .relationship import Relationship, RelationshipManager
 from .filesystem import (
+    CssAdapter,
     FileTypeAdapter,
+    HtmlAdapter,
     IniAdapter,
     JsonAdapter,
+    MarkdownAdapter,
+    PythonAdapter,
     TextAdapter,
     YamlAdapter,
     FileManager,
@@ -94,8 +98,12 @@ class Embryo(object):
     @property
     def adapters(self) -> List[FileTypeAdapter]:
         return [
+            CssAdapter(),
             JsonAdapter(indent=2, sort_keys=True),
+            HtmlAdapter(),
             IniAdapter(),
+            MarkdownAdapter(),
+            PythonAdapter(),
             TextAdapter(),
             YamlAdapter(multi=True),
         ]
@@ -363,9 +371,8 @@ class Embryo(object):
         context = self.dumped_context.copy()
         context.update(self.related)
         fpath = build_embryo_filepath(self.path, 'tree')
-
-        with open(fpath) as tree_file:
-            tree_yml_tpl = tree_file.read()
-            tree_yml = self.jinja_env.from_string(tree_yml_tpl).render(context)
-            tree = yaml.load(tree_yml)
-            return tree
+        
+        tree_yml_tpl = File.from_file(fpath)
+        tree_yml = self.jinja_env.from_string(tree_yml_tpl).render(context)
+        tree = Yaml.from_string(tree_yml)
+        return tree

@@ -176,9 +176,10 @@ class DotFileManager(object):
                             return dot_dir
             return None
 
-        for node in embryo.tree:
-            dot_dir = analyze_node(node)
-            if dot_dir:
-                return dot_dir
+        if embryo.tree:
+            for node in embryo.tree:
+                dot_dir = analyze_node(node)
+                if dot_dir:
+                    return dot_dir
 
         return os.path.join(embryo.destination, '.embryo')

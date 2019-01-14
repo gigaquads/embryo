@@ -173,6 +173,11 @@ class Embryo(object):
         # relative to this embryo's destination directory.
         self.dot.load(self)
 
+        # Generates a dict that maps relationship name
+        # to Embryo object, found by the dot file manager,
+        # using Relationship ctor arguments.
+        self.related = RelationshipManager().load(self)
+
         say('Running pre-create method...')
         self.pre_create(self.context)
 
@@ -181,11 +186,6 @@ class Embryo(object):
         # the templates for rendering.
         self.loaded_context = self._load_context()
         self.dumped_context = self._dump_context()
-
-        # Generates a dict that maps relationship name
-        # to Embryo object, found by the dot file manager,
-        # using Relationship ctor arguments.
-        self.related = RelationshipManager().load(self)
 
         # Render the tree.yml template.
         self.tree = self._render_tree()

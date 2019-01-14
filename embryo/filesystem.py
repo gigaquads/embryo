@@ -153,8 +153,9 @@ class FileManager(object):
                     if isinstance(item, dict):
                         read_recursive(item, child_path_key)
 
-        for item in tree:
-            read_recursive(item, self._root)
+        if tree:
+            for item in tree:
+                read_recursive(item, self._root)
 
     def write(self):
         """

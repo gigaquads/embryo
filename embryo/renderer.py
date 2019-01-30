@@ -73,8 +73,7 @@ class Renderer(object):
         say(
             'Tree:\n\n{tree}',
             tree='\n'.join(
-                ' ' * 4 + line
-                for line in yaml.dump(
+                ' ' * 4 + line for line in yaml.dump(
                     self.embryo.tree,
                     default_flow_style=False,
                     indent=2,

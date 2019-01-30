@@ -109,3 +109,26 @@ def import_embryo_class(embryo_path: str) -> 'Embryo':
                 break
 
     return (embryo_class or Embryo)
+
+
+def get_embryo_resource(embryo_name: str) -> tuple:
+    """
+    # Get Embryo Resource
+    With the provided embryo name, resolve the embryo path as well as the class
+    name to be instantiated by you.
+    """
+    embryo_search_path = build_embryo_search_path()
+    # Get the absolute path to the embryo directory
+    embryo_path = resolve_embryo_path(embryo_search_path, embryo_name)
+
+    say(
+        'Searching for embryos in...\n\n    - {paths}\n',
+        paths='\n    - '.join(embryo_search_path)
+    )
+
+    # import the Embryo class from embryo dir and instantiate it.
+    embryo_class = import_embryo_class(embryo_path)
+    return (
+        embryo_path,
+        embryo_class,
+    )

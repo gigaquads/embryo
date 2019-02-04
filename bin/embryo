@@ -2,7 +2,7 @@
 # encoding=utf8
 # vim: set filetype=python
 
-from appyratus.cli import CliProgram, Subparser, Arg, OptionalArg
+from appyratus.cli import CliProgram, Subparser, PositionalArg, OptionalArg, FlagArg
 from appyratus.files import Yaml, Json
 from appyratus.utils import DictUtils, TimeUtils
 from appyratus.schema import fields
@@ -32,19 +32,19 @@ class EmbryoProgram(CliProgram):
                 name='hatch',
                 usage='Hatch a new embryo',
                 args=[
-                    Arg(
-                        flags=('embryo', ),
+                    PositionalArg(
+                        name='embryo',
                         dtype=str,
                         usage="Name of the embryo to hatch."
                     ),
-                    Arg(
-                        flags=('-d', '--destination'),
+                    OptionalArg(
+                        name='destination',
                         dtype=str,
                         default='.',
                         usage="Destination directory."
                     ),
-                    Arg(
-                        flags=('-c', '--context'),
+                    OptionalArg(
+                        name='context',
                         usage=
                         "Path to a json/yaml context file or an inline JSON object.",
                     )
@@ -70,12 +70,12 @@ class HatchSubparser(Subparser):
         embryo = self._incubator.embryo
         context_fields = embryo.context_schema.fields
         for field_name, field in context_fields.items():
+            arg_params = {'name': field.name, 'short_flag': False}
             if isinstance(field, fields.List):
-                arg = OptionalArg(name=field.name, action='append')
+                arg_params['action'] = 'append'
             elif isinstance(field, fields.List):
-                arg = OptionalArg(name=field.name, choices={})
-            else:
-                arg = OptionalArg(name=field.name)
+                arg_params['choices'] = {}
+            arg = OptionalArg(**arg_params)
             arg.build(self)
             self._args.append(arg)
         program.cli_args = program.parse_cli_args()

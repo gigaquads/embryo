@@ -68,7 +68,7 @@ class HatchSubparser(Subparser):
         # program args have already been built and processed at this point, so
         # they must go through this process again.
         embryo = self._incubator.embryo
-        context_fields = embryo.context_schema.fields
+        context_fields = embryo.context_schema().fields
         for field_name, field in context_fields.items():
             arg_params = {'name': field.name, 'short_flag': False}
             if isinstance(field, fields.List):

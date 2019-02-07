@@ -373,6 +373,9 @@ class Embryo(object):
         fpath = build_embryo_filepath(self.path, 'tree')
         
         tree_yml_tpl = File.from_file(fpath)
+        if tree_yml_tpl is None:
+            shout('No tree in {}'.format(fpath))
+            return 
         tree_yml = self.jinja_env.from_string(tree_yml_tpl).render(context)
         tree = Yaml.from_string(tree_yml)
         return tree

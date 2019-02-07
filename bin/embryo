@@ -50,7 +50,7 @@ class EmbryoProgram(CliProgram):
                     )
                 ]
             ),
-            HistorySubparser(name='history', usage='')
+            HistorySubparser(name='history', usage='View the history of an embryo')
         ]
 
 

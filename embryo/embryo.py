@@ -206,7 +206,7 @@ class Embryo(object):
         self._load_nested_embryos()
 
         say('Running on-create method...')
-        self.on_create(self.loaded_context)
+        self.on_create(self.dumped_context)
 
         # Write files loaded by FileManager back to disk,
         # using available filetype adapters.
@@ -217,7 +217,7 @@ class Embryo(object):
         self._hatch_nested_embryos()
 
         say('Running post-create method...')
-        self.post_create(self.loaded_context)
+        self.post_create(self.dumped_context)
 
     def _load_nested_embryos(self):
         search_path = build_embryo_search_path()

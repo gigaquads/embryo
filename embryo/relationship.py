@@ -9,7 +9,7 @@ class Relationship(object):
         path: str = None,
         name: str = None,
         index: int = None,
-        is_nested = False
+        is_nested=False
     ):
         self._path_to_dot_dir = path
         self._embryo_name = name
@@ -40,12 +40,11 @@ class RelationshipManager(object):
     def load(self, embryo: 'Embryo'):
         relationships = {
             rel_name: rel
-            for (rel_name, rel) in inspect.getmembers(
-                embryo, lambda x: isinstance(x, Relationship)
-            )
+            for (rel_name, rel) in inspect.
+            getmembers(embryo, lambda x: isinstance(x, Relationship))
         }
 
-        results = {}  # {embryo name => Embryo | List[Embryo]}
+        results = {}    # {embryo name => Embryo | List[Embryo]}
 
         for rel_name, rel in relationships.items():
             say('Evaluating relationship: {rel}...', rel=rel_name)
@@ -59,7 +58,11 @@ class RelationshipManager(object):
                 )
             idx = rel.list_index
             if (idx is not None) and (idx < len(embryos)):
-                results[rel_name] = embryos[idx]
+                if embryos:
+                    results[rel_name] = embryos[idx]
+                else:
+                    shout('Unable to find reference for {}'.format(rel_name))
+                    results[rel_name] = {}
             else:
                 results[rel_name] = embryos
 

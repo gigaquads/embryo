@@ -240,7 +240,11 @@ class Embryo(object):
         def load_embryo(embryo_name, context_path, dest_dir):
             assert self.loaded_context
             say('Hatching nested embryo: {name}...', name=embryo_name)
-            context = get_nested_dict(self.loaded_context, context_path).copy()
+            found_context = get_nested_dict(self.loaded_context, context_path)
+            if found_context:
+                context = found_context.copy()
+            else:
+                context = {}
             context['embryo'] = self.context['embryo']
             embryo_path = resolve_embryo_path(search_path, embryo_name)
             embryo_factory = import_embryo_class(embryo_path)

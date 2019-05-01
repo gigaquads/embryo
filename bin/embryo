@@ -2,10 +2,10 @@
 # encoding=utf8
 # vim: set filetype=python
 
-from appyratus.cli import CliProgram, Subparser, Arg
-from appyratus.io import Yaml, Json
-from appyratus.time import from_timestamp
-from appyratus.util import DictUtils
+from appyratus.cli import CliProgram, Subparser, PositionalArg, OptionalArg, FlagArg, Parser
+from appyratus.files import Yaml, Json
+from appyratus.utils import DictUtils, TimeUtils
+from appyratus.schema import fields
 
 from embryo import Incubator
 
@@ -32,39 +32,62 @@ class EmbryoProgram(CliProgram):
                 name='hatch',
                 usage='Hatch a new embryo',
                 args=[
-                    Arg(
-                        flags=('embryo', ),
+                    PositionalArg(
+                        name='embryo',
                         dtype=str,
                         usage="Name of the embryo to hatch."
                     ),
-                    Arg(
-                        flags=('-d', '--destination'),
+                    OptionalArg(
+                        name='destination',
                         dtype=str,
                         default='.',
                         usage="Destination directory."
                     ),
-                    Arg(
-                        flags=('-c', '--context'),
+                    OptionalArg(
+                        name='context',
                         usage=
                         "Path to a json/yaml context file or an inline JSON object.",
                     )
                 ]
             ),
-            BiopsySubparser(
-                name='biopsy',
-                usage=''
+            HistorySubparser(
+                name='history', usage='View the history of an embryo'
             )
         ]
 
 
 class HatchSubparser(Subparser):
     def perform(self, program):
-        incubator = Incubator(
-            embryo_name=program.cli_args.embryo,
-            destination=program.cli_args.destination,
-            context=self.load_context(program.cli_args),
+        cli_args = program.cli_args
+        cli_args_context = self.load_context(cli_args)
+        self._incubator = Incubator(
+            embryo_name=cli_args.embryo,
+            destination=cli_args.destination,
+            context=cli_args_context,
         )
-        return incubator.hatch()
+
+        # XXX this is a hacky approach at getting the hatched embryo's context
+        # schema as args into embryo.  the reason it is hacky is because the
+        # program args have already been built and processed at this point, so
+        # they must go through this process again.
+        embryo = self._incubator.embryo
+        context_fields = embryo.context_schema().fields
+        nargs = []
+        for field_name, field in context_fields.items():
+            arg_params = {'name': field.name, 'short_flag': False}
+            if isinstance(field, fields.List):
+                arg_params['action'] = 'append'
+            elif isinstance(field, fields.List):
+                arg_params['choices'] = {}
+            arg = OptionalArg(**arg_params)
+            arg.build(self)
+            nargs.append(arg)
+
+        nprogram = CliProgram(args=nargs, cli_args=program._raw_cli_args)
+        nprogram.run()
+        embryo.context.update(self.load_context(nprogram.cli_args))
+
+        return self._incubator.hatch()
 
     def load_context_arg(self, cli_args_context):
         """
@@ -92,6 +115,17 @@ class HatchSubparser(Subparser):
 
         return context
 
+    @classmethod
+    def parse_cli_args(cls, cli_args, skip_keys=None):
+        if not skip_keys:
+            skip_keys = []
+        data = {
+            k: getattr(cli_args, k)
+            for k in dir(cli_args)
+            if not ((k in skip_keys) or k.startswith('_'))
+        }
+        return data
+
     def load_context(self, cli_args):
         """
         Here, we convert the commandline arguments into a dict and merge it
@@ -99,14 +133,13 @@ class HatchSubparser(Subparser):
         value of this function is the context object passed into the loader.
         """
         non_context_arg_names = {'action', 'context', 'destination', 'embryo'}
-
-        data_from_cli_kwargs = {
-            k: getattr(cli_args, k)
-            for k in dir(cli_args)
-            if not ((k in non_context_arg_names) or k.startswith('_'))
-        }
-
-        data_from_context_arg = self.load_context_arg(cli_args.context)
+        data_from_cli_kwargs = self.parse_cli_args(
+            cli_args, non_context_arg_names
+        )
+        if hasattr(cli_args, 'context'):
+            data_from_context_arg = self.load_context_arg(cli_args.context)
+        else:
+            data_from_context_arg = {}
 
         context = {}
         context.update(data_from_cli_kwargs)
@@ -115,7 +148,8 @@ class HatchSubparser(Subparser):
 
         return context
 
-class BiopsySubparser(Subparser):
+
+class HistorySubparser(Subparser):
     def perform(self, program):
         embryo_commands = self.parse_context(context)
         embryo_commands.sort(key=lambda tup: tup[0])
@@ -124,7 +158,7 @@ class BiopsySubparser(Subparser):
             if command in used_commands:
                 continue
             used_commands.append(command)
-            print('{} {}'.format(from_timestamp(timestamp), command))
+            print('{} {}'.format(TimeUtils.from_timestamp(timestamp), command))
 
     def parse_context(self, context):
         commands = []
@@ -135,6 +169,7 @@ class BiopsySubparser(Subparser):
                 flat_context = DictUtils.flatten_keys(context)
                 context_args = [
                     '--{} {}'.format(k, v) for k, v in flat_context.items()
+                    if v is not None
                 ]
                 command = 'embryo {} {} {}'.format(
                     embryo_data['action'], embryo, ' '.join(context_args)
@@ -143,8 +178,6 @@ class BiopsySubparser(Subparser):
                 commands.append((timestamp, command))
 
         return commands
-
-
 
 
 if __name__ == "__main__":

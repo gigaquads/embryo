@@ -69,7 +69,7 @@ class DotFileManager(object):
                     self._name2embryos[embryo_name].append(embryo)
                     self._path2embryos[path_key].append(embryo)
 
-    def find(self, name: str = None, path: str = None) -> List['Embryo']:
+    def find(self, name: str=None, path: str=None) -> List['Embryo']:
         """
         Return a list of Embryo objects discovered in the filesystem tree
         relative to the root directory passed into the `load` method. Name or
@@ -111,7 +111,7 @@ class DotFileManager(object):
         # embryos generated here of the same name.
         schema = embryo.context_schema()
         if schema:
-            context = schema.dump(embryo.context, strict=True).data
+            context, errors = schema.process(embryo.context, strict=True)
 
         if embryo.name not in embryo_name_2_contexts:
             embryo_name_2_contexts[embryo.name] = [embryo.loaded_context]
@@ -159,7 +159,7 @@ class DotFileManager(object):
         def is_dot_dir(path):
             return path.endswith('.embryo')
 
-        def analyze_node(node, parent_path: str = ''):
+        def analyze_node(node, parent_path: str=''):
             if isinstance(node, str):
                 path = os.path.join(parent_path, node)
                 if is_dot_dir(path):
@@ -176,9 +176,10 @@ class DotFileManager(object):
                             return dot_dir
             return None
 
-        for node in embryo.tree:
-            dot_dir = analyze_node(node)
-            if dot_dir:
-                return dot_dir
+        if embryo.tree:
+            for node in embryo.tree:
+                dot_dir = analyze_node(node)
+                if dot_dir:
+                    return dot_dir
 
         return os.path.join(embryo.destination, '.embryo')

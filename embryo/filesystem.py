@@ -3,7 +3,7 @@ import json
 import ujson
 
 from appyratus.json import JsonEncoder
-from appyratus.io import Yaml, Ini, Text
+from appyratus.files import Yaml, Ini, Text
 
 from .utils import say
 
@@ -87,6 +87,27 @@ class TextAdapter(FileTypeAdapter):
         Text.to_file(file_path=abs_file_path, contents=contents)
 
 
+class HtmlAdapter(TextAdapter):
+    @property
+    def extensions(self) -> set:
+        return {'htm', 'html'}
+
+class PythonAdapter(TextAdapter):
+    @property
+    def extensions(self) -> set:
+        return {'py'}
+
+class MarkdownAdapter(TextAdapter):
+    @property
+    def extensions(self) -> set:
+        return {'md'}
+
+class CssAdapter(TextAdapter):
+    @property
+    def extensions(self) -> set:
+        return {'css'}
+
+
 class FileMetadata(object):
     def __init__(self, file_obj, adapter):
         self.file_obj = file_obj
@@ -132,8 +153,9 @@ class FileManager(object):
                     if isinstance(item, dict):
                         read_recursive(item, child_path_key)
 
-        for item in tree:
-            read_recursive(item, self._root)
+        if tree:
+            for item in tree:
+                read_recursive(item, self._root)
 
     def write(self):
         """
@@ -151,6 +173,8 @@ class FileManager(object):
         """
         ext = os.path.splitext(abs_file_path)[1][1:].lower()
         adapter = self._ext2adapter.get(ext)
+        if not adapter:
+            say("Adapter not found for extension '{}' [{}]".format(ext, abs_file_path))
         if adapter and os.path.isfile(abs_file_path):
             say('Reading: {path}', path=abs_file_path)
             file_obj = adapter.read(abs_file_path)

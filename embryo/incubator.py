@@ -5,17 +5,14 @@ import json
 from typing import Dict, List
 
 from appyratus.json import JsonEncoder
-from appyratus.time import utc_now
+from appyratus.utils import TimeUtils
 
 from embryo import Renderer
 
 from .exceptions import EmbryoNotFound
 from .embryo import Embryo
 from .constants import EMBRYO_FILE_NAMES, EMBRYO_PATH_ENV_VAR_NAME
-from .utils import (
-    say, shout, build_embryo_filepath, get_nested_dict,
-    import_embryo_class, resolve_embryo_path, build_embryo_search_path,
-)
+from .utils import (say, shout, get_embryo_resource)
 
 
 class Incubator(object):
@@ -51,7 +48,6 @@ class Incubator(object):
         - `destination`: Directory to hatch embryo into
         - `context`: Context data to merge into other sources.
         """
-        self._embryo_search_path = build_embryo_search_path()
         self._json_encoder = JsonEncoder()
         self._embryo_class = None
         self._embryo_path = None
@@ -64,31 +60,28 @@ class Incubator(object):
 
         # ------
         # Add Embryo metadata to context
-        context.update({
-            'embryo': {
-                'name': embryo_name,
-                'destination': os.path.abspath(destination),
-                'timestamp': utc_now(),
-                'action': 'hatch',
+        context.update(
+            {
+                'embryo': {
+                    'name': embryo_name,
+                    'destination': os.path.abspath(
+                        os.path.expanduser(destination)
+                    ),
+                    'timestamp': TimeUtils.utc_now(),
+                    'action': 'hatch',
+                }
             }
-        })
-
-        # Get the absolute path to the embryo directory
-        self._embryo_path = resolve_embryo_path(
-            self._embryo_search_path, embryo_name
         )
+        embryo_path, embryo_class = get_embryo_resource(embryo_name)
+        self._embryo = embryo_class(embryo_path, context)
 
-        say('Searching for embryos in...\n\n    - {paths}\n',
-            paths='\n    - '.join(self._embryo_search_path)
-        )
-
-        # Import the Embryo class from embryo dir and instantaite it.
-        self._embryo_class = import_embryo_class(self._embryo_path)
-        self._embryo = self._embryo_class(self._embryo_path, context)
+    @property
+    def embryo(self):
+        return self._embryo
 
     def hatch(self) -> None:
         """
         This takes all the prepared data structures and uses them to create a
         Renderer and build it. The build renderer is returned.
         """
-        self._embryo.hatch()
+        self.embryo.hatch()

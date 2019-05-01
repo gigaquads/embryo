@@ -11,9 +11,8 @@ from collections import defaultdict
 from jinja2 import Template
 from jinja2.exceptions import TemplateSyntaxError
 
-from appyratus.validation import Schema
-from appyratus.validation import fields
-from appyratus.io import Yaml
+from appyratus.schema import Schema, fields
+from appyratus.files import File, Yaml
 
 from .renderer import Renderer
 from .environment import build_env
@@ -25,9 +24,13 @@ from .constants import (
 )
 from .relationship import Relationship, RelationshipManager
 from .filesystem import (
+    CssAdapter,
     FileTypeAdapter,
+    HtmlAdapter,
     IniAdapter,
     JsonAdapter,
+    MarkdownAdapter,
+    PythonAdapter,
     TextAdapter,
     YamlAdapter,
     FileManager,
@@ -47,16 +50,16 @@ from .utils import (
 class ContextSchema(Schema):
     """
     Returns an instance of a Schema class, which is applied to the context
-    dict, using schema.load(context). A return value of None skips this
+    dict, using schema.process(context). A return value of None skips this
     process, i.e. it is optional.
     """
-    embryo = fields.Object(
+    embryo = fields.Nested(
         {
             'timestamp': fields.DateTime(),
-            'name': fields.Str(),
-            'action': fields.Str(),
-            'path': fields.Str(),
-            'destination': fields.Str(),
+            'name': fields.String(),
+            'action': fields.String(),
+            'path': fields.String(),
+            'destination': fields.String(),
         }
     )
 
@@ -95,8 +98,12 @@ class Embryo(object):
     @property
     def adapters(self) -> List[FileTypeAdapter]:
         return [
+            CssAdapter(),
             JsonAdapter(indent=2, sort_keys=True),
+            HtmlAdapter(),
             IniAdapter(),
+            MarkdownAdapter(),
+            PythonAdapter(),
             TextAdapter(),
             YamlAdapter(multi=True),
         ]
@@ -117,7 +124,7 @@ class Embryo(object):
     def context_schema():
         """
         Returns an instance of a Schema class, which is applied to the context
-        dict, using schema.load(context). A return value of None skips this
+        dict, using schema.process(context). A return value of None skips this
         process, i.e. it is optional.
         """
         return ContextSchema()
@@ -126,7 +133,7 @@ class Embryo(object):
         """
         Perform any side-effects or preprocessing before the embryo Renderer and
         related objects are created. if a context_schema exists, the `context`
-        argument is the marshaled result of calling `schema.load(context)`.
+        argument is the marshaled result of calling `schema.process(context)`.
         This method should be overridden.
         """
 
@@ -166,6 +173,11 @@ class Embryo(object):
         # relative to this embryo's destination directory.
         self.dot.load(self)
 
+        # Generates a dict that maps relationship name
+        # to Embryo object, found by the dot file manager,
+        # using Relationship ctor arguments.
+        self.related = RelationshipManager().load(self)
+
         say('Running pre-create method...')
         self.pre_create(self.context)
 
@@ -174,11 +186,6 @@ class Embryo(object):
         # the templates for rendering.
         self.loaded_context = self._load_context()
         self.dumped_context = self._dump_context()
-
-        # Generates a dict that maps relationship name
-        # to Embryo object, found by the dot file manager,
-        # using Relationship ctor arguments.
-        self.related = RelationshipManager().load(self)
 
         # Render the tree.yml template.
         self.tree = self._render_tree()
@@ -199,7 +206,7 @@ class Embryo(object):
         self._load_nested_embryos()
 
         say('Running on-create method...')
-        self.on_create(self.loaded_context)
+        self.on_create(self.dumped_context)
 
         # Write files loaded by FileManager back to disk,
         # using available filetype adapters.
@@ -210,7 +217,7 @@ class Embryo(object):
         self._hatch_nested_embryos()
 
         say('Running post-create method...')
-        self.post_create(self.loaded_context)
+        self.post_create(self.dumped_context)
 
     def _load_nested_embryos(self):
         search_path = build_embryo_search_path()
@@ -233,7 +240,11 @@ class Embryo(object):
         def load_embryo(embryo_name, context_path, dest_dir):
             assert self.loaded_context
             say('Hatching nested embryo: {name}...', name=embryo_name)
-            context = get_nested_dict(self.loaded_context, context_path).copy()
+            found_context = get_nested_dict(self.loaded_context, context_path)
+            if found_context:
+                context = found_context.copy()
+            else:
+                context = {}
             context['embryo'] = self.context['embryo']
             embryo_path = resolve_embryo_path(search_path, embryo_name)
             embryo_factory = import_embryo_class(embryo_path)
@@ -255,14 +266,14 @@ class Embryo(object):
         retval = {}
         schema = self.context_schema()
         if schema:
-            result = schema.load(self.context)
-            if result.errors:
+            result, errors = schema.process(self.context)
+            if errors:
                 shout(
                     'Failed to load context: {errors}',
-                    errors=json.dumps(result.errors, indent=2, sort_keys=True)
+                    errors=json.dumps(errors, indent=2, sort_keys=True)
                 )
                 exit(-1)
-            retval.update(result.data)
+            retval.update(result)
         retval['embryo'] = self.context['embryo']
         return retval
 
@@ -271,7 +282,7 @@ class Embryo(object):
         Dump schema to context and update with related attributes
         """
         assert self.loaded_context is not None
-        dumped_context = self.schema.dump(self.loaded_context).data
+        dumped_context, errors = self.schema.process(self.loaded_context)
         dumped_context.update(self.related)
         return dumped_context
 
@@ -364,9 +375,11 @@ class Embryo(object):
         context = self.dumped_context.copy()
         context.update(self.related)
         fpath = build_embryo_filepath(self.path, 'tree')
-
-        with open(fpath) as tree_file:
-            tree_yml_tpl = tree_file.read()
-            tree_yml = self.jinja_env.from_string(tree_yml_tpl).render(context)
-            tree = yaml.load(tree_yml)
-            return tree
+        
+        tree_yml_tpl = File.from_file(fpath)
+        if tree_yml_tpl is None:
+            shout('No tree in {}'.format(fpath))
+            return 
+        tree_yml = self.jinja_env.from_string(tree_yml_tpl).render(context)
+        tree = Yaml.from_string(tree_yml)
+        return tree

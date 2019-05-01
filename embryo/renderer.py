@@ -11,7 +11,7 @@ from copy import deepcopy
 
 from jinja2 import Template
 from yapf.yapflib.yapf_api import FormatCode
-from appyratus.io import Yaml
+from appyratus.files import Yaml
 from appyratus.json import JsonEncoder
 
 from .constants import (
@@ -73,8 +73,7 @@ class Renderer(object):
         say(
             'Tree:\n\n{tree}',
             tree='\n'.join(
-                ' ' * 4 + line
-                for line in yaml.dump(
+                ' ' * 4 + line for line in yaml.dump(
                     self.embryo.tree,
                     default_flow_style=False,
                     indent=2,
@@ -111,10 +110,19 @@ class Renderer(object):
 
         if templates:
             for k, v in templates.items():
+                say('Loading template: {}'.format(k))
                 if isinstance(v, Template):
                     loaded_templates[k] = v
                 elif isinstance(v, str):
-                    loaded_templates[k] = jinja_env.from_string(v)
+                    try:
+                        loaded_templates[k] = jinja_env.from_string(v)
+                    except Exception as exc:
+                        source = exc.source.split('\n')[exc.lineno - 1]
+                        shout(
+                            'Error "{message}", line {line} {source}'.format(
+                                message=exc.message, line=exc.lineno, source=source
+                            )
+                        )
 
         self.jinja2_templates = loaded_templates
 

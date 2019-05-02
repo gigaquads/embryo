@@ -1,0 +1,29 @@
+{
+  "project/base": [
+    {
+      "embryo": {
+        "action": "hatch",
+        "destination": "/Users/jeffdoss/jump-ship/code/embryo",
+        "name": "project/base",
+        "timestamp": 1556810022
+      },
+      "project": {
+        "name": "embryo"
+      }
+    }
+  ],
+  "python-project/base": [
+    {
+      "description": null,
+      "embryo": {
+        "action": "hatch",
+        "destination": "/Users/jeffdoss/jump-ship/code/embryo",
+        "name": "python-project/base",
+        "timestamp": 1556810026
+      },
+      "project": null,
+      "tagline": null,
+      "version": null
+    }
+  ]
+}

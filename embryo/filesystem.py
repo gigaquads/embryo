@@ -3,8 +3,9 @@ import json
 import ujson
 
 from appyratus.json import JsonEncoder
-from appyratus.files import Yaml, Ini, Text, Python
+from appyratus.files import Yaml, Ini, Text, PythonModule
 
+from .constants import RE_RENDERING_METADATA
 from .utils import say
 
 
@@ -111,10 +112,10 @@ class PythonAdapter(TextAdapter):
         return {'py'}
 
     def read(self, abs_file_path: str) -> str:
-        return Python.from_file(file_path=abs_file_path)
+        return PythonModule.from_file(file_path=abs_file_path)
 
     def write(self, abs_file_path: str, contents: str = None) -> None:
-        Python.to_file(file_path=abs_file_path, contents=contents)
+        PythonModule.to_file(file_path=abs_file_path, contents=contents)
 
 
 class FileMetadata(object):
@@ -150,7 +151,6 @@ class FileManager(object):
 
         def read_recursive(node: dict, path_key: str):
             if isinstance(node, str):
-                from .constants import RE_RENDERING_METADATA
                 match = RE_RENDERING_METADATA.match(node)
                 if match:
                     self._read_file(path_key)
@@ -163,7 +163,6 @@ class FileManager(object):
                     if not children:
                         continue
                     child_path_key = os.path.join(path_key, parent_key)
-                    print(child_path_key, children)
                     read_recursive(children, child_path_key)
             elif isinstance(node, list):
                 for child in node:

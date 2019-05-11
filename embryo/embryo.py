@@ -2,9 +2,6 @@ import os
 import json
 import inspect
 
-import ujson
-import yaml
-
 from typing import Dict, List
 from collections import defaultdict
 
@@ -98,12 +95,12 @@ class Embryo(object):
     @property
     def adapters(self) -> List[FileTypeAdapter]:
         return [
+            PythonAdapter(),
             CssAdapter(),
             JsonAdapter(indent=2, sort_keys=True),
             HtmlAdapter(),
             IniAdapter(),
             MarkdownAdapter(),
-            PythonAdapter(),
             TextAdapter(),
             YamlAdapter(multi=True),
         ]

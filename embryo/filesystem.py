@@ -130,12 +130,35 @@ class FileManager(object):
         self._ext2adapter = {}
         self._root = None
 
-    def __getitem__(self, rel_file_path):
-        key = os.path.join(self._root, rel_file_path.lstrip('/'))
-        metadata = self._abs_path2metadata.get(key)
+    @property
+    def path2metadata(self):
+        return self._abs_path2metadata
+
+    def __getitem__(self, rel_file_path: Text):
+        metadata = self.get_metadata(self.build_abs_path(rel_file_path))
         if metadata is None:
             raise KeyError('file path not recognized')
         return metadata.file_obj
+
+    def get_metadata(self, key):
+        return self.path2metadata.get(key)
+
+    def find_metadata(self, key):
+        res = self.get_metadata(key)
+        if res:
+            return res
+        known_keys = list(self.path2metadata.keys())
+        matches = {}
+        for k in known_keys:
+            if key in k:
+                matches[k] = self.get_metadata(k)
+        return matches
+
+    def build_abs_path(self, key):
+        return os.path.join(self._root, key.lstrip('/'))
+
+    def __contains__(self, rel_file_path):
+        return self.build_abs_path(rel_file_path) in self.path2metadata.keys()
 
     def read(self, embryo):
         """
@@ -189,11 +212,7 @@ class FileManager(object):
         ext = os.path.splitext(abs_file_path)[1][1:].lower()
         adapter = self._ext2adapter.get(ext)
         if not adapter:
-            say(
-                "Adapter not found for extension '{}' [{}]".format(
-                    ext, abs_file_path
-                )
-            )
+            say("Adapter not found for extension '{}' [{}]".format(ext, abs_file_path))
         if adapter and os.path.isfile(abs_file_path):
             say('Reading: {path}', path=abs_file_path)
             file_obj = adapter.read(abs_file_path)

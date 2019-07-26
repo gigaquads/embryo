@@ -77,7 +77,8 @@ class HatchSubparser(Subparser):
             arg_params = {'name': field.name, 'short_flag': False}
             if isinstance(field, fields.List):
                 arg_params['action'] = 'append'
-                arg_params['choices'] = {}
+                # XXX where in the field can we store choices to populate this?
+                arg_params['choices'] = None
             arg = OptionalArg(**arg_params)
             arg.build(self)
             nargs.append(arg)

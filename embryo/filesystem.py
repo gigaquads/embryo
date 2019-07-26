@@ -58,10 +58,10 @@ class YamlAdapter(FileTypeAdapter):
         return {'yml', 'yaml'}
 
     def read(self, abs_file_path: str) -> dict:
-        return Yaml.from_file(file_path=abs_file_path, multi=self._multi)
+        return Yaml.read(file_path=abs_file_path, multi=self._multi)
 
     def write(self, abs_file_path: str, file_obj: dict) -> None:
-        Yaml.to_file(file_path=abs_file_path, data=file_obj, multi=self._multi)
+        Yaml.write(file_path=abs_file_path, data=file_obj, multi=self._multi)
 
 
 class IniAdapter(FileTypeAdapter):
@@ -70,10 +70,10 @@ class IniAdapter(FileTypeAdapter):
         return {'ini', 'cfg'}
 
     def read(self, abs_file_path: str) -> dict:
-        return Ini.from_file(file_path=abs_file_path)
+        return Ini.read(file_path=abs_file_path)
 
     def write(self, abs_file_path: str, data) -> None:
-        Ini.to_file(file_path=abs_file_path, data=data)
+        Ini.write(file_path=abs_file_path, data=data)
 
 
 class TextAdapter(FileTypeAdapter):
@@ -82,10 +82,10 @@ class TextAdapter(FileTypeAdapter):
         return {'txt'}
 
     def read(self, abs_file_path: str) -> str:
-        return Text.from_file(file_path=abs_file_path)
+        return Text.read(file_path=abs_file_path)
 
     def write(self, abs_file_path: str, contents: str) -> None:
-        Text.to_file(file_path=abs_file_path, contents=contents)
+        Text.write(file_path=abs_file_path, contents=contents)
 
 
 class HtmlAdapter(TextAdapter):
@@ -112,10 +112,10 @@ class PythonAdapter(TextAdapter):
         return {'py'}
 
     def read(self, abs_file_path: str) -> str:
-        return PythonModule.from_file(file_path=abs_file_path)
+        return PythonModule.read(file_path=abs_file_path)
 
     def write(self, abs_file_path: str, contents: str = None) -> None:
-        PythonModule.to_file(file_path=abs_file_path, contents=contents)
+        PythonModule.write(file_path=abs_file_path, contents=contents)
 
 
 class FileMetadata(object):

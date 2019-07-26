@@ -9,7 +9,7 @@ from appyratus.schema import fields
 
 from embryo import Incubator
 
-context = Json.load_file('.embryo/context.json')
+context = Json.read('.embryo/context.json')
 
 
 def main():
@@ -77,7 +77,6 @@ class HatchSubparser(Subparser):
             arg_params = {'name': field.name, 'short_flag': False}
             if isinstance(field, fields.List):
                 arg_params['action'] = 'append'
-            elif isinstance(field, fields.List):
                 arg_params['choices'] = {}
             arg = OptionalArg(**arg_params)
             arg.build(self)
@@ -108,7 +107,7 @@ class HatchSubparser(Subparser):
                 with open(context_filepath) as context_file:
                     context = ujson.load(context_file)
             elif has_ext(context_str, ['yml', 'yaml']):
-                context = Yaml.from_file(context_filepath)
+                context = Yaml.read(context_filepath)
             else:
                 # assume it's a JSON object string
                 context = ujson.loads(context_str)

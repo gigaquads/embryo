@@ -162,6 +162,8 @@ class HistorySubparser(Subparser):
 
     def parse_context(self, context):
         commands = []
+        if context is None:
+            context = {}
         for embryo, contexts in context.items():
             for context in contexts:
                 embryo_data = context['embryo']

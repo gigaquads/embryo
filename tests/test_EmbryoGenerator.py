@@ -30,7 +30,7 @@ class TestEmbryoGenerator(object):
                 with patch('embryo.create.Renderer') as Renderer:
                     Renderer.return_value = renderer
                     with patch('embryo.create.Yaml') as Yaml:
-                        Yaml.from_file.return_value = {}
+                        Yaml.read.return_value = {}
                         EmbryoGenerator.create(generator, name, dest, context)
 
             embryo.apply_pre_create.assert_called_once_with(context)
@@ -42,7 +42,7 @@ class TestEmbryoGenerator(object):
                 with patch('embryo.create.Renderer') as Renderer:
                     Renderer.return_value = renderer
                     with patch('embryo.create.Yaml') as Yaml:
-                        Yaml.from_file.return_value = {}
+                        Yaml.read.return_value = {}
                         EmbryoGenerator.create(generator, name, dest, context)
 
             embryo.apply_pre_create.assert_not_called()

@@ -296,7 +296,7 @@ class Embryo(object):
         fpath = build_embryo_filepath(path, 'context')
 
         dynamic_context = context
-        static_context = Yaml.from_file(fpath) or {}
+        static_context = Yaml.read(fpath) or {}
 
         merged_context = {}
         merged_context.update(static_context)
@@ -373,10 +373,10 @@ class Embryo(object):
         context.update(self.related)
         fpath = build_embryo_filepath(self.path, 'tree')
         
-        tree_yml_tpl = File.from_file(fpath)
+        tree_yml_tpl = File.read(fpath)
         if tree_yml_tpl is None:
             shout('No tree in {}'.format(fpath))
             return 
         tree_yml = self.jinja_env.from_string(tree_yml_tpl).render(context)
-        tree = Yaml.from_string(tree_yml)
+        tree = Yaml.load(tree_yml)
         return tree

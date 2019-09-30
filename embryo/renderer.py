@@ -223,9 +223,7 @@ class Renderer(object):
                 ctx_obj.update(self.embryo.related)
                 ctx_obj['embryo'] = self.embryo
 
-                self._render_file(
-                    abs_fpath, tpl_name, ctx_obj, style_config=style_config
-                )
+                self._render_file(abs_fpath, tpl_name, ctx_obj, style_config=style_config)
 
         return self.nested_embryos
 
@@ -249,6 +247,25 @@ class Renderer(object):
                 say('Touching file: {path}', path=path)
                 open(path, 'a').close()
 
+    def render_template(
+        self,
+        template_name: str,
+        context: dict,
+    ) -> None:
+        rendered_text = None
+        try:
+            template = self.jinja2_templates[template_name]
+        except KeyError:
+            raise TemplateNotFound(template_name)
+
+        try:
+            say('Rendering {t}', t=template_name)
+            rendered_text = template.render(context).strip()
+        except Exception:
+            shout('Problem rendering {t}', t=template_name)
+            raise
+        return rendered_text
+
     def _render_file(
         self,
         abs_fpath: str,
@@ -261,13 +278,10 @@ class Renderer(object):
         recognized by this `Renderer`.
         """
         try:
-            template = self.jinja2_templates[template_name]
-        except KeyError:
-            raise TemplateNotFound(template_name)
-
-        try:
-            say('Rendering {p}', p=abs_fpath)
-            rendered_text = template.render(context).strip()
+            say('Rendering template {p}', p=abs_fpath)
+            rendered_text = self.render_template(
+                template_name=template_name, context=context
+            )
         except Exception:
             shout('Problem rendering {p}', p=abs_fpath)
             raise
@@ -275,9 +289,7 @@ class Renderer(object):
         if abs_fpath.endswith('.py'):
             style_config = style_config or STYLE_CONFIG
             try:
-                formatted_text = FormatCode(
-                    rendered_text, style_config=style_config
-                )[0]
+                formatted_text = FormatCode(rendered_text, style_config=style_config)[0]
             except Exception:
                 shout('Problem formatting {p}', p=abs_fpath)
                 raise

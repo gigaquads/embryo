@@ -140,6 +140,9 @@ class Renderer(object):
             return
 
         for obj in tree:
+            if obj is None:
+                # an empty node, do nothing
+                continue
             if isinstance(obj, dict):
                 k = list(obj.keys())[0]
                 v = obj[k]

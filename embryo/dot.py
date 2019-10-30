@@ -1,19 +1,22 @@
-import os
-
 import json
-import ujson
-
-from typing import Dict, List
+import os
 from collections import defaultdict
+from typing import (
+    Dict,
+    List,
+    Text,
+)
+
+import ujson
 
 from appyratus.json import JsonEncoder
 
 from .utils import (
+    build_embryo_search_path,
+    import_embryo_class,
+    resolve_embryo_path,
     say,
     shout,
-    resolve_embryo_path,
-    import_embryo_class,
-    build_embryo_search_path,
 )
 
 
@@ -69,7 +72,7 @@ class DotFileManager(object):
                     self._name2embryos[embryo_name].append(embryo)
                     self._path2embryos[path_key].append(embryo)
 
-    def find(self, name: str=None, path: str=None) -> List['Embryo']:
+    def find(self, name: Text=None, path: Text=None) -> List['Embryo']:
         """
         Return a list of Embryo objects discovered in the filesystem tree
         relative to the root directory passed into the `load` method. Name or
@@ -130,7 +133,7 @@ class DotFileManager(object):
                 ) + '\n'
             )
 
-    def _load_context_json(self, context_json_fpath: str) -> Dict:
+    def _load_context_json(self, context_json_fpath: Text) -> Dict:
         """
         Read in a context.json file to a dict.
         """
@@ -159,7 +162,9 @@ class DotFileManager(object):
         def is_dot_dir(path):
             return path.endswith('.embryo')
 
-        def analyze_node(node, parent_path: str=''):
+        def analyze_node(node, parent_path: Text=''):
+            if node is None:
+                return None
             if isinstance(node, str):
                 path = os.path.join(parent_path, node)
                 if is_dot_dir(path):

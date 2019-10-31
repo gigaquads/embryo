@@ -1,7 +1,6 @@
 appyratus
 
 pyyaml
-jinja2
 yapf
 gitpython
 ujson

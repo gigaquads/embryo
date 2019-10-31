@@ -5,7 +5,6 @@ import inspect
 from typing import Dict, List
 from collections import defaultdict
 
-from jinja2 import Template
 from jinja2.exceptions import TemplateSyntaxError
 
 from appyratus.schema import Schema, fields

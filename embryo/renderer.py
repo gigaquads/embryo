@@ -9,7 +9,7 @@ from types import ModuleType
 from os.path import join
 from copy import deepcopy
 
-from jinja2 import Template
+from appyratus.utils import Template
 from yapf.yapflib.yapf_api import FormatCode
 from appyratus.files import Yaml
 from appyratus.json import JsonEncoder

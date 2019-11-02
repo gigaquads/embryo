@@ -1,9 +1,4 @@
 appyratus
-
-pyyaml
-yapf
-gitpython
 ujson
-
 pytest
 ipdb

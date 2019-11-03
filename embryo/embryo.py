@@ -1,26 +1,34 @@
-import os
-import json
 import inspect
-
-from typing import Dict, List
+import json
+import os
 from collections import defaultdict
+from typing import (
+    Dict,
+    List,
+)
 
 from jinja2.exceptions import TemplateSyntaxError
 
-from appyratus.schema import Schema, fields
-from appyratus.files import File, Yaml
+from appyratus.files import (
+    File,
+    Yaml,
+)
+from appyratus.schema import (
+    Schema,
+    fields,
+)
 
-from .renderer import Renderer
-from .environment import build_env
-from .exceptions import TemplateLoadFailed
 from .constants import (
     EMBRYO_FILE_NAMES,
-    RE_RENDERING_EMBRYO,
     NESTED_EMBRYO_KEY,
+    RE_RENDERING_EMBRYO,
 )
-from .relationship import Relationship, RelationshipManager
+from .dot import DotFileManager
+from .environment import build_env
+from .exceptions import TemplateLoadFailed
 from .filesystem import (
     CssAdapter,
+    FileManager,
     FileTypeAdapter,
     HtmlAdapter,
     IniAdapter,
@@ -29,17 +37,20 @@ from .filesystem import (
     PythonAdapter,
     TextAdapter,
     YamlAdapter,
-    FileManager,
 )
-from .dot import DotFileManager
+from .relationship import (
+    Relationship,
+    RelationshipManager,
+)
+from .renderer import Renderer
 from .utils import (
-    say,
-    shout,
     build_embryo_filepath,
-    resolve_embryo_path,
-    import_embryo_class,
     build_embryo_search_path,
     get_nested_dict,
+    import_embryo_class,
+    resolve_embryo_path,
+    say,
+    shout,
 )
 
 
@@ -84,6 +95,7 @@ class Embryo(object):
         self.dumped_context = None
         self.templates = None
         self.tree = None
+        self._ext2adapter = {}
 
     def __repr__(self):
         return '<{class_name}({embryo_path})>'.format(
@@ -103,6 +115,14 @@ class Embryo(object):
             TextAdapter(),
             YamlAdapter(multi=True),
         ]
+
+    @property
+    def ext2adapter(self) -> Dict:
+        if not self._ext2adapter:
+            for adapter in self.adapters:
+                for ext in adapter.extensions:
+                    self._ext2adapter[ext.lower()] = adapter
+        return self._ext2adapter
 
     @property
     def name(self):

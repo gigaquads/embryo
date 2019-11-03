@@ -1,27 +1,38 @@
-import os
-
 import json
+import os
+from collections import defaultdict
+from copy import deepcopy
+from os.path import join
+from types import ModuleType
+from typing import (
+    Text,
+    Dict,
+    List,
+)
+
 import yaml
 
-from collections import defaultdict
-from typing import Dict, List
-from types import ModuleType
-from os.path import join
-from copy import deepcopy
-
-from appyratus.utils import Template
-from yapf.yapflib.yapf_api import FormatCode
-from appyratus.files import Yaml
+from appyratus.files import (
+    PythonModule,
+    Yaml,
+)
 from appyratus.json import JsonEncoder
+from appyratus.utils import (
+    PathUtils,
+    Template,
+)
 
 from .constants import (
-    RE_RENDERING_METADATA,
     RE_RENDERING_EMBRYO,
+    RE_RENDERING_METADATA,
     STYLE_CONFIG,
 )
 from .environment import build_env
 from .exceptions import TemplateNotFound
-from .utils import say, shout
+from .utils import (
+    say,
+    shout,
+)
 
 
 class Renderer(object):
@@ -50,7 +61,7 @@ class Renderer(object):
         # Args
         - embryo: the Embryo object
         - context: a context dict for use by jinja2 templates.
-        - style_config: yapf style options for code formating>
+        - style_config: yapf style options for code formating.
 
         1. Create the directories and files in the file system.
         2. Render templates into said files.
@@ -81,7 +92,7 @@ class Renderer(object):
             )
         )
 
-        self._touch_filesystem()
+        self.embryo.fs._touch_filesystem(self.root, self.directory_paths, self.fpaths)
         self._render_files(style_config)
         self.embryo.persist()
 
@@ -129,7 +140,7 @@ class Renderer(object):
     def _analyze_embryo(self):
         self._analyze_tree(self.embryo.tree)
 
-    def _analyze_tree(self, tree, parent_path: str = ''):
+    def _analyze_tree(self, tree, parent_path: Text = ''):
         """
         Initializes `directory_paths`, `fpaths`, and `template_meta`. It
         returns a dict-based tree structure.
@@ -230,30 +241,10 @@ class Renderer(object):
 
         return self.nested_embryos
 
-    def _touch_filesystem(self) -> None:
-        """
-        Creates files and directories in the file system. This will not
-        overwrite anything.
-        """
-        # TODO: Move this into the FileManager
-        if not os.path.exists(self.root):
-            os.makedirs(self.root)
-            say('Creating directory: {path}', path=self.root)
-        for dir_path in self.directory_paths:
-            path = join(self.root, './{}'.format(dir_path))
-            if not os.path.exists(path):
-                say('Creating directory: {path}', path=path)
-                os.makedirs(path)
-        for fpath in self.fpaths:
-            path = join(self.root, './{}'.format(fpath))
-            if not os.path.isfile(path) and not path.endswith('.embryo'):
-                say('Touching file: {path}', path=path)
-                open(path, 'a').close()
-
     def render_template(
         self,
-        template_name: str,
-        context: dict,
+        template_name: Text,
+        context: Dict,
     ) -> None:
         rendered_text = None
         try:
@@ -271,10 +262,10 @@ class Renderer(object):
 
     def _render_file(
         self,
-        abs_fpath: str,
-        template_name: str,
-        context: dict,
-        style_config: dict = None
+        abs_fpath: Text,
+        template_name: Text,
+        context: Dict,
+        style_config: Dict= None
     ) -> None:
         """
         Renders a template to a file, provided that the `abs_fpath` provided is
@@ -289,23 +280,19 @@ class Renderer(object):
             shout('Problem rendering {p}', p=abs_fpath)
             raise
 
-        if abs_fpath.endswith('.py'):
-            style_config = style_config or STYLE_CONFIG
-            try:
-                formatted_text = FormatCode(rendered_text, style_config=style_config)[0]
-            except Exception:
-                shout('Problem formatting {p}', p=abs_fpath)
-                raise
-        else:
-            formatted_text = rendered_text
-
+        formatted_text = rendered_text
         self._write_file(abs_fpath, formatted_text)
 
-    def _write_file(self, fpath: str, text: str) -> None:
+    def _write_file(self, fpath: Text, text: Text) -> None:
         """
-        Writes a string to a file, provided that the `fpath` provided is
-        recognized by this `Renderer`.
+        Writes a string to a file
         """
         abs_fpath = join(self.root, fpath.strip())
-        with open(abs_fpath, 'w') as f_out:
-            f_out.write(text)
+        ext = PathUtils.get_extension(abs_fpath)
+        adapter = self.embryo.ext2adapter.get(ext)
+        if adapter:
+            adapter.write(abs_fpath, text)
+        else:
+            # TODO make a generic FileAdapter and write using the File type
+            with open(abs_fpath, 'w') as f_out:
+                f_out.write(text)

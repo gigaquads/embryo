@@ -28,6 +28,7 @@ from .environment import build_env
 from .exceptions import TemplateLoadFailed
 from .filesystem import (
     CssAdapter,
+    FileAdapter,
     FileManager,
     FileTypeAdapter,
     HtmlAdapter,
@@ -114,6 +115,7 @@ class Embryo(object):
             MarkdownAdapter(),
             TextAdapter(),
             YamlAdapter(multi=True),
+            FileAdapter(),
         ]
 
     @property
@@ -121,7 +123,7 @@ class Embryo(object):
         if not self._ext2adapter:
             for adapter in self.adapters:
                 for ext in adapter.extensions:
-                    self._ext2adapter[ext.lower()] = adapter
+                    self._ext2adapter[ext.lower() if ext else None] = adapter
         return self._ext2adapter
 
     @property

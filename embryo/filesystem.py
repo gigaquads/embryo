@@ -43,6 +43,10 @@ class FileAdapter(FileTypeAdapter):
     Generic file adapter when no other is appropriate
     """
 
+    @property
+    def extensions(self) -> set:
+        return {None}
+
     def read(self, abs_path: Text, data) -> object:
         return File.read(abs_path)
 

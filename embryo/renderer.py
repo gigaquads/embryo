@@ -265,7 +265,7 @@ class Renderer(object):
         abs_fpath: Text,
         template_name: Text,
         context: Dict,
-        style_config: Dict= None
+        style_config: Dict = None
     ) -> None:
         """
         Renders a template to a file, provided that the `abs_fpath` provided is
@@ -290,9 +290,4 @@ class Renderer(object):
         abs_fpath = join(self.root, fpath.strip())
         ext = PathUtils.get_extension(abs_fpath)
         adapter = self.embryo.ext2adapter.get(ext)
-        if adapter:
-            adapter.write(abs_fpath, text)
-        else:
-            # TODO make a generic FileAdapter and write using the File type
-            with open(abs_fpath, 'w') as f_out:
-                f_out.write(text)
+        adapter.write(abs_fpath, text)

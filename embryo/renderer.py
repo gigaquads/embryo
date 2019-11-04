@@ -16,7 +16,6 @@ from appyratus.files import (
     Yaml,
     Json,
 )
-from appyratus.json import JsonEncoder
 from appyratus.utils import (
     PathUtils,
     Template,
@@ -40,8 +39,6 @@ class Renderer(object):
     A `Renderer`  is responsible for taking the loaded instructions owned by an
     `Embryo` object and generating files into the filesystem.
     """
-
-    _json_encoder = JsonEncoder()
 
     def __init__(self):
         """
@@ -74,11 +71,7 @@ class Renderer(object):
 
         say(
             'Context:\n\n{ctx}\n',
-            ctx=Json.dump(
-                Json.load(self._json_encoder.encode(self.embryo.context)),
-                indent=2,
-                sort_keys=True
-            )
+            ctx=Json.dump(self.embryo.context, indent=2, sort_keys=True)
         )
 
         say(

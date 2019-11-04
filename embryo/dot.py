@@ -6,9 +6,8 @@ from typing import (
     Text,
 )
 
-from appyratus.json import JsonEncoder
-
 from appyratus.files import Json
+
 from .utils import (
     build_embryo_search_path,
     import_embryo_class,
@@ -27,7 +26,6 @@ class DotFileManager(object):
     """
 
     def __init__(self):
-        self._json_encoder = JsonEncoder()
         self._embryo_search_path = build_embryo_search_path()
         self._named_path2embryos = defaultdict(list)
         self._name2embryos = defaultdict(list)
@@ -120,7 +118,7 @@ class DotFileManager(object):
         say('Saving context to {path}', path=context_json_path)
         Json.write(
             context_json_path,
-            Json.load(self._json_encoder.encode(embryo_name_2_contexts)),
+            Json.load(Json.dump(embryo_name_2_contexts)),
             indent=2,
             sort_keys=True
         )

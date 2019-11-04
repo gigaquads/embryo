@@ -13,8 +13,8 @@ from appyratus.files import (
     PythonModule,
     Text,
     Yaml,
+    Json,
 )
-from appyratus.json import JsonEncoder
 from appyratus.utils import PathUtils
 
 from .constants import RE_RENDERING_METADATA
@@ -57,7 +57,6 @@ class FileAdapter(FileTypeAdapter):
 class JsonAdapter(FileTypeAdapter):
 
     def __init__(self, indent=2, sort_keys=True):
-        self._encoder = JsonEncoder()
         self._indent = indent
         self._sort_keys = sort_keys
 
@@ -71,7 +70,7 @@ class JsonAdapter(FileTypeAdapter):
     def write(self, abs_path: Text, data) -> None:
         Json.write(
             abs_path,
-            Json.load(self._encoder.encode(data)),
+            Json.load(Json.dump(data)),
             ident=self._indent,
             sort_keys=self._sort_keys
         )

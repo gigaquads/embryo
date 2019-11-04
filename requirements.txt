@@ -1,4 +1,3 @@
 appyratus
-ujson
 pytest
 ipdb

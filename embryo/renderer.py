@@ -1,4 +1,3 @@
-import json
 import os
 from collections import defaultdict
 from copy import deepcopy
@@ -15,6 +14,7 @@ import yaml
 from appyratus.files import (
     PythonModule,
     Yaml,
+    Json,
 )
 from appyratus.json import JsonEncoder
 from appyratus.utils import (
@@ -74,8 +74,8 @@ class Renderer(object):
 
         say(
             'Context:\n\n{ctx}\n',
-            ctx=json.dumps(
-                json.loads(self._json_encoder.encode(self.embryo.context)),
+            ctx=Json.dump(
+                Json.load(self._json_encoder.encode(self.embryo.context)),
                 indent=2,
                 sort_keys=True
             )

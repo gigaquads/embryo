@@ -1,4 +1,3 @@
-import json
 import os
 from collections import defaultdict
 from typing import (
@@ -7,10 +6,9 @@ from typing import (
     Text,
 )
 
-import ujson
-
 from appyratus.json import JsonEncoder
 
+from appyratus.files import Json
 from .utils import (
     build_embryo_search_path,
     import_embryo_class,
@@ -72,7 +70,7 @@ class DotFileManager(object):
                     self._name2embryos[embryo_name].append(embryo)
                     self._path2embryos[path_key].append(embryo)
 
-    def find(self, name: Text=None, path: Text=None) -> List['Embryo']:
+    def find(self, name: Text = None, path: Text = None) -> List['Embryo']:
         """
         Return a list of Embryo objects discovered in the filesystem tree
         relative to the root directory passed into the `load` method. Name or
@@ -105,10 +103,7 @@ class DotFileManager(object):
         # load the JSON file
         if os.path.isfile(context_json_path):
             # read in the current data structure
-            with open(context_json_path, 'r') as fin:
-                json_str = fin.read()
-                if json_str:
-                    embryo_name_2_contexts = ujson.loads(json_str)
+            embryo_name_2_contexts = Json.read(context_json_path)
 
         # adding to the JSON file data by adding it to the list of other
         # embryos generated here of the same name.
@@ -122,16 +117,13 @@ class DotFileManager(object):
             embryo_name_2_contexts[embryo.name].append(embryo.loaded_context)
 
         # write the appended data back to the JSON file
-        with open(context_json_path, 'w') as fout:
-            say('Saving context to {path}', path=context_json_path)
-            fout.write(
-                json.dumps(
-                    json.
-                    loads(self._json_encoder.encode(embryo_name_2_contexts)),
-                    indent=2,
-                    sort_keys=True
-                ) + '\n'
-            )
+        say('Saving context to {path}', path=context_json_path)
+        Json.write(
+            context_json_path,
+            Json.load(self._json_encoder.encode(embryo_name_2_contexts)),
+            indent=2,
+            sort_keys=True
+        )
 
     def _load_context_json(self, context_json_fpath: Text) -> Dict:
         """
@@ -140,10 +132,7 @@ class DotFileManager(object):
         loaded_json_obj = {}
 
         if os.path.isfile(context_json_fpath):
-            with open(context_json_fpath) as fin:
-                json_obj_str = fin.read()
-                if json_obj_str:
-                    loaded_json_obj = ujson.loads(json_obj_str)
+            loaded_json_obj = Json.read(context_json_fpath)
 
         return loaded_json_obj
 
@@ -159,10 +148,11 @@ class DotFileManager(object):
         return embryo
 
     def _resolve_dot_dir(self, embryo):
+
         def is_dot_dir(path):
             return path.endswith('.embryo')
 
-        def analyze_node(node, parent_path: Text=''):
+        def analyze_node(node, parent_path: Text = ''):
             if node is None:
                 return None
             if isinstance(node, str):

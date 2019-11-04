@@ -1,5 +1,4 @@
 import inspect
-import json
 import os
 from collections import defaultdict
 from typing import (
@@ -12,6 +11,7 @@ from jinja2.exceptions import TemplateSyntaxError
 from appyratus.files import (
     File,
     Yaml,
+    Json,
 )
 from appyratus.schema import (
     Schema,
@@ -288,7 +288,7 @@ class Embryo(object):
             if errors:
                 shout(
                     'Failed to load context: {errors}',
-                    errors=json.dumps(errors, indent=2, sort_keys=True)
+                    errors=Json.dump(errors, indent=2, sort_keys=True)
                 )
                 exit(-1)
             retval.update(result)
@@ -304,7 +304,7 @@ class Embryo(object):
         dumped_context.update(self.related)
         return dumped_context
 
-    def _build_context(self, context: Dict=None) -> Dict:
+    def _build_context(self, context: Dict = None) -> Dict:
         """
         Context can come from three places and is merged into a computed dict
         in the following order:
@@ -364,8 +364,7 @@ class Embryo(object):
                 except TemplateSyntaxError:
                     shout(
                         'Could not render template '
-                        'for file path string: {p}',
-                        p=fpath
+                        'for file path string: {p}', p=fpath
                     )
                     raise
 
@@ -373,11 +372,10 @@ class Embryo(object):
                 rendered_rel_fpath = fname_template.render(context)
 
                 # now actually read the file into the resulting dict.
-                with open(fpath) as fin:
-                    try:
-                        templates[rendered_rel_fpath] = fin.read()
-                    except Exception:
-                        raise TemplateLoadFailed(fpath)
+                try:
+                    templates[rendered_rel_fpath] = File.read(fpath)
+                except Exception:
+                    raise TemplateLoadFailed(fpath)
 
         return templates
 
@@ -393,11 +391,11 @@ class Embryo(object):
         context = self.dumped_context.copy()
         context.update(self.related)
         fpath = build_embryo_filepath(self.path, 'tree')
-        
+
         tree_yml_tpl = File.read(fpath)
         if tree_yml_tpl is None:
             shout('No tree in {}'.format(fpath))
-            return 
+            return
         tree_yml = self.jinja_env.from_string(tree_yml_tpl).render(context)
         tree = Yaml.load(tree_yml)
         return tree

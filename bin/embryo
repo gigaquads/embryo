@@ -105,13 +105,12 @@ class HatchSubparser(Subparser):
         if cli_args_context:
             context_str = cli_args_context
             if has_ext(context_str, ['json']):
-                with open(context_filepath) as context_file:
-                    context = ujson.load(context_file)
+                context = Json.read(context_filepath)
             elif has_ext(context_str, ['yml', 'yaml']):
                 context = Yaml.read(context_filepath)
             else:
                 # assume it's a JSON object string
-                context = ujson.loads(context_str)
+                context = Json.load(context_str)
 
         return context
 

@@ -282,5 +282,5 @@ class Renderer(object):
         """
         abs_fpath = join(self.root, fpath.strip())
         ext = PathUtils.get_extension(abs_fpath)
-        adapter = self.embryo.ext2adapter.get(ext)
+        adapter = self.embryo.ext2adapter.get(ext if ext is None else None)
         adapter.write(abs_fpath, text)

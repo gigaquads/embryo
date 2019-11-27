@@ -37,6 +37,9 @@ class FileTypeAdapter(object):
     def write(self, abs_path: Text, data=None) -> None:
         raise NotImplementedError()
 
+    def load(self, data) -> object:
+        return data
+
 
 class FileAdapter(FileTypeAdapter):
     """
@@ -85,6 +88,9 @@ class YamlAdapter(FileTypeAdapter):
     @property
     def extensions(self) -> set:
         return {'yml', 'yaml'}
+
+    def load(self, data):
+        return Yaml.load(data, multi=self._multi)
 
     def read(self, abs_path: Text) -> dict:
         return Yaml.read(path=abs_path, multi=self._multi)

@@ -274,13 +274,18 @@ class Renderer(object):
             raise
 
         formatted_text = rendered_text
-        self._write_file(abs_fpath, formatted_text)
+        # get the full filepath with root prefix
+        fpath = self.get_abs_path(abs_fpath)
+        # load up the adapter for the file
+        adapter = self.get_adapter(fpath)
+        loaded_text = adapter.load(formatted_text)
+        # write the loaded data
+        adapter.write(fpath, loaded_text)
 
-    def _write_file(self, fpath: Text, text: Text) -> None:
-        """
-        Writes a string to a file
-        """
-        abs_fpath = join(self.root, fpath.strip())
-        ext = PathUtils.get_extension(abs_fpath)
+    def get_abs_path(self, fpath):
+        return join(self.root, fpath.strip())
+
+    def get_adapter(self, fpath):
+        ext = PathUtils.get_extension(fpath)
         adapter = self.embryo.ext2adapter.get(ext)
         adapter.write(abs_fpath, text)

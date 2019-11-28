@@ -287,5 +287,5 @@ class Renderer(object):
 
     def get_adapter(self, fpath):
         ext = PathUtils.get_extension(fpath)
-        adapter = self.embryo.ext2adapter.get(ext)
+        adapter = self.embryo.ext2adapter.get(ext if ext is None else None)
         return adapter

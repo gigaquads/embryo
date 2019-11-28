@@ -288,4 +288,4 @@ class Renderer(object):
     def get_adapter(self, fpath):
         ext = PathUtils.get_extension(fpath)
         adapter = self.embryo.ext2adapter.get(ext)
-        adapter.write(abs_fpath, text)
+        return adapter

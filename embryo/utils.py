@@ -119,6 +119,7 @@ def get_embryo_resource(embryo_name: str) -> tuple:
     """
     embryo_search_path = build_embryo_search_path()
     # Get the absolute path to the embryo directory
+
     embryo_path = resolve_embryo_path(embryo_search_path, embryo_name)
 
     say(
@@ -129,6 +130,7 @@ def get_embryo_resource(embryo_name: str) -> tuple:
     # import the Embryo class from embryo dir and instantiate it.
     embryo_class = import_embryo_class(embryo_path)
     return (
+        embryo_name,
         embryo_path,
         embryo_class,
     )

@@ -69,7 +69,8 @@ class Incubator(object):
                 }
             }
         )
-        embryo_path, embryo_class = get_embryo_resource(embryo_name)
+
+        embryo_name, embryo_path, embryo_class = get_embryo_resource(embryo_name)
         self._embryo = embryo_class(embryo_path, context)
 
     @property

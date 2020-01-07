@@ -164,7 +164,7 @@ class Embryo(object):
 
     def post_create(self, context) -> None:
         """
-        Post_create is called upon the successful creation of the Renderer
+        Post-create is called upon the successful creation of the Renderer
         object. Any side-effects following the creation of the embryo in the
         filesystem can be performed here. This method should be overridden.
         """

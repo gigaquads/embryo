@@ -131,7 +131,7 @@ class HatchSubparser(Subparser):
         together with the dict loaded from the --context argument. The return
         value of this function is the context object passed into the loader.
         """
-        non_context_arg_names = {'action', 'context', 'destination', 'embryo'}
+        non_context_arg_names = {'context', 'destination', 'embryo'}
         data_from_cli_kwargs = self.parse_cli_args(
             cli_args, non_context_arg_names
         )

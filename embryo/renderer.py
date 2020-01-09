@@ -123,9 +123,10 @@ class Renderer(object):
                     except Exception as exc:
                         source = exc.source.split('\n')[exc.lineno - 1]
                         shout(
-                            'Error "{message}", line {line} {source}'.format(
-                                message=exc.message, line=exc.lineno, source=source
-                            )
+                            'Error "{message}", line {line} {source}',
+                            message=exc.message,
+                            line=exc.lineno,
+                            source=source
                         )
 
         self.jinja2_templates = loaded_templates

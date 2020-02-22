@@ -1,5 +1,6 @@
 import os
 from collections import defaultdict
+from copy import deepcopy
 from typing import (
     Dict,
     List,
@@ -109,10 +110,15 @@ class DotFileManager(object):
         if schema:
             context, errors = schema.process(embryo.context, strict=True)
 
+        # clean up embryo context, as we want to remove some information- like
+        # the embryo destination, which can vary from user to user
+        clean_embryo_context = deepcopy(embryo.loaded_context)
+        del clean_embryo_context['embryo']['destination']
+
         if embryo.name not in embryo_name_2_contexts:
-            embryo_name_2_contexts[embryo.name] = [embryo.loaded_context]
+            embryo_name_2_contexts[embryo.name] = [clean_embryo_context]
         else:
-            embryo_name_2_contexts[embryo.name].append(embryo.loaded_context)
+            embryo_name_2_contexts[embryo.name].append(clean_embryo_context)
 
         # write the appended data back to the JSON file
         say('Saving context to {path}', path=context_json_path)

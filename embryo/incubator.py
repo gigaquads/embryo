@@ -1,10 +1,8 @@
 import os
 import inspect
-import json
 
 from typing import Dict, List
 
-from appyratus.json import JsonEncoder
 from appyratus.utils import TimeUtils
 
 from embryo import Renderer
@@ -48,7 +46,6 @@ class Incubator(object):
         - `destination`: Directory to hatch embryo into
         - `context`: Context data to merge into other sources.
         """
-        self._json_encoder = JsonEncoder()
         self._embryo_class = None
         self._embryo_path = None
         self._embryo = None
@@ -72,7 +69,8 @@ class Incubator(object):
                 }
             }
         )
-        embryo_path, embryo_class = get_embryo_resource(embryo_name)
+
+        embryo_name, embryo_path, embryo_class = get_embryo_resource(embryo_name)
         self._embryo = embryo_class(embryo_path, context)
 
     @property

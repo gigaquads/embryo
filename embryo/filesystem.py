@@ -1,14 +1,29 @@
-from typing import Text
 import os
+from os.path import (
+    exists,
+    join,
+)
+from typing import (
+    Dict,
+    Text,
+)
 
-from appyratus.json import JsonEncoder
-from appyratus.files import Yaml, Ini, Text, PythonModule
+from appyratus.files import (
+    File,
+    Ini,
+    Json,
+    PythonModule,
+    Text,
+    Yaml,
+)
+from appyratus.utils import PathUtils
 
 from .constants import RE_RENDERING_METADATA
 from .utils import say
 
 
 class FileTypeAdapter(object):
+
     def __init__(self):
         pass
 
@@ -19,13 +34,33 @@ class FileTypeAdapter(object):
     def read(self, abs_path) -> object:
         raise NotImplementedError()
 
-    def write(self, abs_path: Text, data = None) -> None:
+    def write(self, abs_path: Text, data=None) -> None:
         raise NotImplementedError()
+
+    def load(self, data) -> object:
+        return data
+
+
+class FileAdapter(FileTypeAdapter):
+    """
+    # File Adapter
+    Generic file adapter when no other is appropriate
+    """
+
+    @property
+    def extensions(self) -> set:
+        return {None}
+
+    def read(self, abs_path: Text, data) -> object:
+        return File.read(abs_path)
+
+    def write(self, abs_path: Text, data) -> None:
+        File.write(abs_path, data)
 
 
 class JsonAdapter(FileTypeAdapter):
+
     def __init__(self, indent=2, sort_keys=True):
-        self._encoder = JsonEncoder()
         self._indent = indent
         self._sort_keys = sort_keys
 
@@ -38,19 +73,24 @@ class JsonAdapter(FileTypeAdapter):
 
     def write(self, abs_path: Text, data) -> None:
         Json.write(
-            Json.load(self._encoder.encode(data)),
+            abs_path,
+            Json.load(Json.dump(data)),
             ident=self._indent,
             sort_keys=self._sort_keys
         )
 
 
 class YamlAdapter(FileTypeAdapter):
+
     def __init__(self, multi=False):
         self._multi = multi
 
     @property
     def extensions(self) -> set:
         return {'yml', 'yaml'}
+
+    def load(self, data):
+        return Yaml.load(data, multi=self._multi)
 
     def read(self, abs_path: Text) -> dict:
         return Yaml.read(path=abs_path, multi=self._multi)
@@ -60,6 +100,7 @@ class YamlAdapter(FileTypeAdapter):
 
 
 class IniAdapter(FileTypeAdapter):
+
     @property
     def extensions(self) -> set:
         return {'ini', 'cfg'}
@@ -67,11 +108,12 @@ class IniAdapter(FileTypeAdapter):
     def read(self, abs_path: Text) -> dict:
         return Ini.read(path=abs_path)
 
-    def write(self, abs_path: Text, data = None) -> None:
+    def write(self, abs_path: Text, data=None) -> None:
         Ini.write(path=abs_path, data=data)
 
 
 class TextAdapter(FileTypeAdapter):
+
     @property
     def extensions(self) -> set:
         return {'txt'}
@@ -79,47 +121,69 @@ class TextAdapter(FileTypeAdapter):
     def read(self, abs_path: Text) -> Text:
         return Text.read(path=abs_path)
 
-    def write(self, abs_path: Text, data = None) -> None:
+    def write(self, abs_path: Text, data=None) -> None:
         Text.write(path=abs_path, data=data)
 
 
 class HtmlAdapter(TextAdapter):
+
     @property
     def extensions(self) -> set:
         return {'htm', 'html'}
 
 
 class MarkdownAdapter(TextAdapter):
+
     @property
     def extensions(self) -> set:
         return {'md'}
 
 
 class CssAdapter(TextAdapter):
+
     @property
     def extensions(self) -> set:
         return {'css'}
 
 
 class PythonAdapter(TextAdapter):
+
+    def __init__(
+        self,
+        preserve_comments: bool = True,
+        format_code: bool = True,
+        style_config: Dict = None
+    ):
+        self._preserve_comments = preserve_comments
+        self._format_code = format_code
+        self._style_config = style_config
+
     @property
     def extensions(self) -> set:
         return {'py'}
 
     def read(self, abs_path: Text) -> Text:
-        return PythonModule.read(path=abs_path)
+        return PythonModule.read(path=abs_path, preserve_comments=self._preserve_comments)
 
     def write(self, abs_path: Text, data=None) -> None:
-        PythonModule.write(path=abs_path, data=data)
+        PythonModule.write(
+            path=abs_path,
+            data=data,
+            restore_comments=self._preserve_comments,
+            format_code=self._format_code,
+            style_config=self._style_config
+        )
 
 
 class FileMetadata(object):
+
     def __init__(self, file_obj, adapter):
         self.file_obj = file_obj
         self.adapter = adapter
 
 
 class FileManager(object):
+
     def __init__(self):
         self._abs_path2metadata = {}
         self._ext2adapter = {}
@@ -150,10 +214,29 @@ class FileManager(object):
         return matches
 
     def build_abs_path(self, key):
-        return os.path.join(self._root, key.lstrip('/'))
+        return join(self._root, key.lstrip('/'))
 
     def __contains__(self, rel_file_path):
         return self.build_abs_path(rel_file_path) in self.path2metadata.keys()
+
+    def _touch_filesystem(self, root, dir_paths, file_paths) -> None:
+        """
+        Creates files and directories in the file system. This will not
+        overwrite anything.
+        """
+        if not exists(root):
+            os.makedirs(root)
+            say('Creating directory: {path}', path=root)
+        for dir_path in dir_paths:
+            path = join(root, './{}'.format(dir_path))
+            if not exists(path):
+                say('Creating directory: {path}', path=path)
+                os.makedirs(path)
+        for fpath in file_paths:
+            path = join(root, './{}'.format(fpath))
+            if not os.path.isfile(path) and not path.endswith('.embryo'):
+                say('Touching file: {path}', path=path)
+                open(path, 'a').close()
 
     def read(self, embryo):
         """
@@ -163,28 +246,24 @@ class FileManager(object):
         tree = embryo.tree
         self._root = embryo.destination
 
-        for adapter in embryo.adapters:
-            for ext in adapter.extensions:
-                self._ext2adapter[ext.lower()] = adapter
-
-        def read_recursive(node: dict, path_key: Text):
+        def read_recursive(node: Dict, path_key: Text):
             if isinstance(node, str):
                 match = RE_RENDERING_METADATA.match(node)
                 if match:
-                    self._read_file(path_key)
+                    abs_path = path_key
                 else:
-                    abs_path = os.path.join(path_key, node)
-                    self._read_file(abs_path)
+                    abs_path = join(path_key, node)
+                self._read_file(abs_path, embryo)
                 return
             elif isinstance(node, dict):
                 for parent_key, children in node.items():
                     if not children:
                         continue
-                    child_path_key = os.path.join(path_key, parent_key)
+                    child_path_key = join(path_key, parent_key)
                     read_recursive(children, child_path_key)
             elif isinstance(node, list):
                 for child in node:
-                    child_path_key = os.path.join(path_key)
+                    child_path_key = join(path_key)
                     read_recursive(child, child_path_key)
 
         if tree:
@@ -199,13 +278,13 @@ class FileManager(object):
             say('Writing back file: {path}', path=abs_path)
             metadata.adapter.write(abs_path, metadata.file_obj)
 
-    def _read_file(self, abs_path):
+    def _read_file(self, abs_path, embryo):
         """
         Read a single file into _abs_path2metadata, provided that a
         FileTypeAdapter exists for the given file type.
         """
-        ext = os.path.splitext(abs_path)[1][1:].lower()
-        adapter = self._ext2adapter.get(ext)
+        ext = PathUtils.get_extension(abs_path)
+        adapter = embryo.ext2adapter.get(ext)
         if not adapter:
             say("Adapter not found for extension '{}' [{}]".format(ext, abs_path))
         if adapter and os.path.isfile(abs_path):

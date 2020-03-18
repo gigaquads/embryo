@@ -1,15 +1,25 @@
-import os
 import inspect
+import os
+from importlib.util import (
+    module_from_spec,
+    spec_from_file_location,
+)
+from typing import (
+    Dict,
+    List,
+)
 
-from typing import Dict, List
-from importlib.util import spec_from_file_location, module_from_spec
+from appyratus.utils import (
+    PathUtils,
+    StringUtils,
+)
 
-from .exceptions import EmbryoNotFound
 from .constants import (
-    PROMPT_STYLES,
     EMBRYO_FILE_NAMES,
     EMBRYO_PATH_ENV_VAR_NAME,
+    PROMPT_STYLES,
 )
+from .exceptions import EmbryoNotFound
 
 
 def say(fstr, **format_vars) -> None:
@@ -62,9 +72,16 @@ def resolve_embryo_path(search_path: List[str], name: str) -> str:
         # absolute path to embryo dir
         return name
     else:
-        for path in search_path:
-            path = '{}/{}'.format(path.rstrip('/'), name)
-            if os.path.exists(path):
+        for root_path in search_path:
+            path = PathUtils.join(root_path, name)
+            if PathUtils.exists(path):
+                return path
+
+            # try to coerce the name into the expected format
+            name_parts = PathUtils.split(name)
+            name_parts = [StringUtils.snake(n) for n in name_parts]
+            path = PathUtils.join(root_path, *name_parts)
+            if PathUtils.exists(path):
                 return path
 
     raise EmbryoNotFound(name)
@@ -119,6 +136,7 @@ def get_embryo_resource(embryo_name: str) -> tuple:
     """
     embryo_search_path = build_embryo_search_path()
     # Get the absolute path to the embryo directory
+
     embryo_path = resolve_embryo_path(embryo_search_path, embryo_name)
 
     say(
@@ -129,6 +147,7 @@ def get_embryo_resource(embryo_name: str) -> tuple:
     # import the Embryo class from embryo dir and instantiate it.
     embryo_class = import_embryo_class(embryo_path)
     return (
+        embryo_name,
         embryo_path,
         embryo_class,
     )

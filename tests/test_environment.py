@@ -1,12 +1,12 @@
 import pytest
 
-from embryo.environment import build_env, jinja2
+from embryo.environment import build_env, TemplateEnvironment
 
 
 class TestEnvironment(object):
     def test_build_env_provides_env(self):
         env = build_env()
-        assert isinstance(env, jinja2.Environment)
+        assert isinstance(env, TemplateEnvironment)
 
     def test_env_has_custom_filters(self):
         env = build_env()

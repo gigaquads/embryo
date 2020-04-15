@@ -35,32 +35,35 @@ class EmbryoProgram(CliProgram):
                     PositionalArg(
                         name='embryo',
                         dtype=str,
-                        usage="Name of the embryo to hatch."
+                        usage="Name of the embryo to hatch.",
                     ),
                     OptionalArg(
                         name='destination',
                         dtype=str,
                         default='.',
-                        usage="Destination directory."
+                        usage="Destination directory.",
                     ),
                     OptionalArg(
                         name='context',
-                        usage=
-                        "Path to a json/yaml context file or an inline JSON object.",
+                        usage="Path to a json/yaml context file or an inline JSON object.",
                     )
                 ]
             ),
-            HistorySubparser(
-                name='history', usage='View the history of an embryo'
-            )
+            HistorySubparser(name='history', usage='View the history of an embryo')
         ]
 
 
 class HatchSubparser(Subparser):
-    def perform(self, program):
+
+    @staticmethod
+    def perform(program):
         cli_args = program.cli_args
-        cli_args_context = self.load_context(cli_args)
-        self._incubator = Incubator(
+        HatchSubparser.dothis(program, cli_args)
+
+    @staticmethod
+    def dothis(program, cli_args):
+        cli_args_context = HatchSubparser.load_context(cli_args)
+        _incubator = Incubator(
             embryo_name=cli_args.embryo,
             destination=cli_args.destination,
             context=cli_args_context,
@@ -70,7 +73,7 @@ class HatchSubparser(Subparser):
         # schema as args into embryo.  the reason it is hacky is because the
         # program args have already been built and processed at this point, so
         # they must go through this process again.
-        embryo = self._incubator.embryo
+        embryo = _incubator.embryo
         context_fields = embryo.context_schema().fields
         nargs = []
         for field_name, field in context_fields.items():
@@ -80,25 +83,23 @@ class HatchSubparser(Subparser):
                 # XXX where in the field can we store choices to populate this?
                 arg_params['choices'] = None
             arg = OptionalArg(**arg_params)
-            arg.build(self)
+            arg.build(program)
             nargs.append(arg)
 
         nprogram = CliProgram(args=nargs, cli_args=program._raw_cli_args)
         nprogram.run()
-        embryo.context.update(self.load_context(nprogram.cli_args))
+        embryo.context.update(HatchSubparser.load_context(nprogram.cli_args))
 
-        return self._incubator.hatch()
+        return _incubator.hatch()
 
-    def load_context_arg(self, cli_args_context):
+    @staticmethod
+    def load_context_arg(cli_args_context):
         """
         This loads the --context arg into a dict and returns it.
         """
 
         def has_ext(filename, extensions):
-            return any(
-                filename.lower().endswith('.' + ext.lower())
-                for ext in extensions
-            )
+            return any(filename.lower().endswith('.' + ext.lower()) for ext in extensions)
 
         context = {}
 
@@ -114,29 +115,29 @@ class HatchSubparser(Subparser):
 
         return context
 
-    @classmethod
-    def parse_cli_args(cls, cli_args, skip_keys=None):
+    @staticmethod
+    def parse_cli_args(cli_args, skip_keys=None):
         if not skip_keys:
             skip_keys = []
         data = {
             k: getattr(cli_args, k)
-            for k in dir(cli_args)
-            if not ((k in skip_keys) or k.startswith('_'))
+            for k in dir(cli_args) if not ((k in skip_keys) or k.startswith('_'))
         }
         return data
 
-    def load_context(self, cli_args):
+    @staticmethod
+    def load_context(cli_args):
         """
         Here, we convert the commandline arguments into a dict and merge it
         together with the dict loaded from the --context argument. The return
         value of this function is the context object passed into the loader.
         """
         non_context_arg_names = {'context', 'destination', 'embryo'}
-        data_from_cli_kwargs = self.parse_cli_args(
+        data_from_cli_kwargs = HatchSubparser.parse_cli_args(
             cli_args, non_context_arg_names
         )
         if hasattr(cli_args, 'context'):
-            data_from_context_arg = self.load_context_arg(cli_args.context)
+            data_from_context_arg = HatchSubparser.load_context_arg(cli_args.context)
         else:
             data_from_context_arg = {}
 
@@ -149,8 +150,11 @@ class HatchSubparser(Subparser):
 
 
 class HistorySubparser(Subparser):
-    def perform(self, program):
-        embryo_commands = self.parse_context(context)
+
+    @staticmethod
+    def perform(program):
+        embryo_commands = HistorySubparser.parse_context(context)
+
         embryo_commands.sort(key=lambda tup: tup[0])
         used_commands = []
         for timestamp, command in embryo_commands:
@@ -159,7 +163,8 @@ class HistorySubparser(Subparser):
             used_commands.append(command)
             print('{} {}'.format(TimeUtils.from_timestamp(timestamp), command))
 
-    def parse_context(self, context):
+    @staticmethod
+    def parse_context(context):
         commands = []
         if context is None:
             context = {}

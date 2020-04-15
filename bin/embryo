@@ -15,8 +15,8 @@ context = Json.read('.embryo/context.json')
 def main():
     prog = EmbryoProgram(
         name="embryo",
-        version="0",
-        tagline="wat",
+        version="2.0.1",
+        tagline="generate this",
     )
     prog.run()
 

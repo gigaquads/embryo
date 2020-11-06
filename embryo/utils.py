@@ -20,14 +20,14 @@ from .constants import (
     PROMPT_STYLES,
 )
 from .exceptions import EmbryoNotFound
-
+from .logging import logger
 
 def say(fstr, **format_vars) -> None:
-    print(PROMPT_STYLES['say'] + ' ' + fstr.format(**format_vars))
+    logger.info(PROMPT_STYLES['say'] + ' ' + fstr.format(**format_vars))
 
 
 def shout(fstr, **format_vars) -> None:
-    print(PROMPT_STYLES['scream'] + ' ' + fstr.format(**format_vars))
+    logger.error(PROMPT_STYLES['scream'] + ' ' + fstr.format(**format_vars))
 
 
 def build_embryo_filepath(embryo_path: str, file_code: str) -> str:

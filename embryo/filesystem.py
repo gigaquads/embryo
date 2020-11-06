@@ -51,7 +51,7 @@ class FileAdapter(FileTypeAdapter):
     def extensions(self) -> set:
         return {None}
 
-    def read(self, abs_path: Text, data) -> object:
+    def read(self, abs_path: Text) -> object:
         return File.read(abs_path)
 
     def write(self, abs_path: Text, data) -> None:
@@ -144,6 +144,13 @@ class CssAdapter(TextAdapter):
     @property
     def extensions(self) -> set:
         return {'css'}
+
+
+class ShellAdapter(TextAdapter):
+
+    @property
+    def extensions(self) -> set:
+        return {'sh'}
 
 
 class PythonAdapter(TextAdapter):
@@ -284,9 +291,9 @@ class FileManager(object):
         FileTypeAdapter exists for the given file type.
         """
         ext = PathUtils.get_extension(abs_path)
-        adapter = embryo.ext2adapter.get(ext)
+        adapter = embryo.ext2adapter.get(ext or None)
         if not adapter:
-            say("Adapter not found for extension '{}' [{}]".format(ext, abs_path))
+            say(f"Adapter not found for extension '{ext}' [{abs_path}]")
         if adapter and os.path.isfile(abs_path):
             say('Reading: {path}', path=abs_path)
             file_obj = adapter.read(abs_path)

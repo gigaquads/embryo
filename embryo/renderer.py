@@ -4,17 +4,17 @@ from copy import deepcopy
 from os.path import join
 from types import ModuleType
 from typing import (
-    Text,
     Dict,
     List,
+    Text,
 )
 
 import yaml
 
 from appyratus.files import (
+    Json,
     PythonModule,
     Yaml,
-    Json,
 )
 from appyratus.utils import (
     PathUtils,
@@ -168,13 +168,16 @@ class Renderer(object):
                     else:
                         match = RE_RENDERING_METADATA.match(v)
                         fname = k
-                        tpl_name, ctx_key = match.groups()
-                        fpath = join(parent_path, fname)
-                        self.template_meta[fpath] = {
-                            'template_name': tpl_name,
-                            'context_path': ctx_key,
-                        }
-                        self.fpaths.add(fpath)
+                        if not match:
+                            shout(f'unable to find renderer match for "{k}: {v}".. skipping')
+                        else:
+                            tpl_name, ctx_key = match.groups()
+                            fpath = join(parent_path, fname)
+                            self.template_meta[fpath] = {
+                                'template_name': tpl_name,
+                                'context_path': ctx_key,
+                            }
+                            self.fpaths.add(fpath)
                 else:
                     # call _analyze_tree on subdirectory
                     child_path = join(parent_path, k)

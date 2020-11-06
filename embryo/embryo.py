@@ -10,13 +10,14 @@ from jinja2.exceptions import TemplateSyntaxError
 
 from appyratus.files import (
     File,
-    Yaml,
     Json,
+    Yaml,
 )
 from appyratus.schema import (
     Schema,
     fields,
 )
+from appyratus.utils import PathUtils
 
 from .constants import (
     EMBRYO_FILE_NAMES,
@@ -36,9 +37,11 @@ from .filesystem import (
     JsonAdapter,
     MarkdownAdapter,
     PythonAdapter,
+    ShellAdapter,
     TextAdapter,
     YamlAdapter,
 )
+from .logging import logger
 from .relationship import (
     Relationship,
     RelationshipManager,
@@ -116,6 +119,7 @@ class Embryo(object):
             TextAdapter(),
             YamlAdapter(multi=True),
             FileAdapter(),
+            ShellAdapter(),
         ]
 
     @property
@@ -399,3 +403,13 @@ class Embryo(object):
         tree_yml = self.jinja_env.from_string(tree_yml_tpl).render(context)
         tree = Yaml.load(tree_yml)
         return tree
+
+    def make_executable(self, file_match):
+        executables = [k for k in self.fs.find_metadata(file_match).keys()]
+        if not executables:
+            return
+        say(f'found {len(executables)} executable matching "{file_match}"')
+        user, group, world = True, True, None
+        for exe in executables:
+            say(f'making {exe} executable, [u {user}, g {group}, w {world}]')
+            PathUtils.make_executable(exe, user=user, group=group, world=world)

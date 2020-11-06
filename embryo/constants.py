@@ -1,4 +1,6 @@
 import re
+#ENV = Environment()
+CONSOLE_LOG_LEVEL = 'INFO'
 
 RE_RENDERING_METADATA = re.compile(r'^([\w\-\_\.]+)\s*\(\s*([\w\.]*)\s*\)$')
 RE_RENDERING_EMBRYO = re.compile(r'^([\w\-\_\/]+)\(([\w\.]*)\)$')

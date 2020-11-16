@@ -162,7 +162,11 @@ class HistorySubparser(Subparser):
             if command in used_commands:
                 continue
             used_commands.append(command)
-            say('{} {}'.format(TimeUtils.from_timestamp(timestamp), command))
+            say(
+                '{timestamp} {command}',
+                timestamp=TimeUtils.from_timestamp(timestamp),
+                command=command
+            )
 
     @staticmethod
     def parse_context(context):

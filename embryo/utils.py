@@ -27,6 +27,8 @@ def say(fstr, **format_vars) -> None:
 
 
 def shout(fstr, **format_vars) -> None:
+    if isinstance(fstr, Exception):
+        fstr = repr(fstr)
     logger.error(PROMPT_STYLES['scream'] + ' ' + fstr.format(**format_vars))
 
 

@@ -187,7 +187,7 @@ class Embryo(object):
         say('Stimulating embryonic growth sequence...')
         say('Hatching Embryo: "{name}"', name=self.name)
 
-        if not self.standalone():
+        if (not self.standalone()) and self.related:
             # Load all Embryo objects discovered in
             # context.json files present in the filesystem,
             # relative to this embryo's destination directory.

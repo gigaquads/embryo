@@ -8,6 +8,7 @@ from appyratus.utils import DictUtils, TimeUtils
 from appyratus.schema import fields
 
 from embryo import Incubator
+from embryo.utils import say, shout
 
 context = Json.read('.embryo/context.json')
 
@@ -15,7 +16,7 @@ context = Json.read('.embryo/context.json')
 def main():
     prog = EmbryoProgram(
         name="embryo",
-        version="2.0.1",
+        version="2.0.2",
         tagline="generate this",
     )
     prog.run()
@@ -168,7 +169,11 @@ class HistorySubparser(Subparser):
             if command in used_commands:
                 continue
             used_commands.append(command)
-            print('{} {}'.format(TimeUtils.from_timestamp(timestamp), command))
+            say(
+                '{timestamp} {command}',
+                timestamp=TimeUtils.from_timestamp(timestamp),
+                command=command
+            )
 
     @staticmethod
     def parse_context(context):
@@ -197,5 +202,5 @@ if __name__ == "__main__":
     try:
         main()
     except Exception as error:
-        print("ERROR {}".format(error))
+        shout(error)
         raise error

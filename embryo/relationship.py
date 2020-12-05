@@ -47,7 +47,7 @@ class RelationshipManager(object):
         results = {}    # {embryo name => Embryo | List[Embryo]}
 
         for rel_name, rel in relationships.items():
-            say('Evaluating relationship: {rel}...', rel=rel_name)
+            say('evaluating relationship: {rel}...', rel=rel_name)
             if rel.is_nested:
                 assert rel.path_to_dot_dir is None
                 # ^ No such thing as a dot-file path to a nested embryo
@@ -61,7 +61,7 @@ class RelationshipManager(object):
                 if embryos:
                     results[rel_name] = embryos[idx]
                 else:
-                    shout('Unable to find reference for {}'.format(rel_name))
+                    shout('unable to find reference for {}'.format(rel_name))
                     results[rel_name] = {}
             else:
                 results[rel_name] = embryos

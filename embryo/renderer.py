@@ -4,17 +4,17 @@ from copy import deepcopy
 from os.path import join
 from types import ModuleType
 from typing import (
-    Text,
     Dict,
     List,
+    Text,
 )
 
 import yaml
 
 from appyratus.files import (
+    Json,
     PythonModule,
     Yaml,
-    Json,
 )
 from appyratus.utils import (
     PathUtils,
@@ -75,9 +75,9 @@ class Renderer(object):
         
         ctx_json = Json.dump(ctx, indent=2, sort_keys=True)
 
-        say(f'Context:\n\n{ctx_json}\n')
+        say(f'context:\n\n{ctx_json}\n')
         say(
-            'Tree:\n\n{tree}',
+            'tree:\n\n{tree}',
             tree='\n'.join(
                 ' ' * 4 + line for line in yaml.dump(
                     self.embryo.tree,
@@ -116,7 +116,7 @@ class Renderer(object):
 
         if templates:
             for k, v in templates.items():
-                say('Loading template: {}'.format(k))
+                say('loading template: {}'.format(k))
                 if isinstance(v, Template):
                     loaded_templates[k] = v
                 elif isinstance(v, str):
@@ -125,7 +125,7 @@ class Renderer(object):
                     except Exception as exc:
                         source = exc.source.split('\n')[exc.lineno - 1]
                         shout(
-                            'Error "{message}", line {line} {source}',
+                            'error "{message}", line {line} {source}',
                             message=exc.message,
                             line=exc.lineno,
                             source=source
@@ -170,13 +170,16 @@ class Renderer(object):
                     else:
                         match = RE_RENDERING_METADATA.match(v)
                         fname = k
-                        tpl_name, ctx_key = match.groups()
-                        fpath = join(parent_path, fname)
-                        self.template_meta[fpath] = {
-                            'template_name': tpl_name,
-                            'context_path': ctx_key,
-                        }
-                        self.fpaths.add(fpath)
+                        if not match:
+                            shout(f'unable to find renderer match for "{k}: {v}".. skipping')
+                        else:
+                            tpl_name, ctx_key = match.groups()
+                            fpath = join(parent_path, fname)
+                            self.template_meta[fpath] = {
+                                'template_name': tpl_name,
+                                'context_path': ctx_key,
+                            }
+                            self.fpaths.add(fpath)
                 else:
                     # call _analyze_tree on subdirectory
                     child_path = join(parent_path, k)
@@ -272,10 +275,10 @@ class Renderer(object):
             raise TemplateNotFound(template_name)
 
         try:
-            say(f'Rendering {template_name}')
+            say(f'rendering {template_name}')
             rendered_text = template.render(context).strip()
         except Exception:
-            shout('Problem rendering {t}', t=template_name)
+            shout('problem rendering {t}', t=template_name)
             raise
         return rendered_text
 
@@ -291,12 +294,12 @@ class Renderer(object):
         recognized by this `Renderer`.
         """
         try:
-            say(f'Rendering {abs_fpath[1+len(self.embryo.destination):]}')
+            say(f'rendering {abs_fpath[1+len(self.embryo.destination):]}')
             rendered_text = self.render_template(
                 template_name=template_name, context=context
             )
         except Exception:
-            shout('Problem rendering {p}', p=abs_fpath)
+            shout('problem rendering {p}', p=abs_fpath)
             raise
 
         formatted_text = rendered_text

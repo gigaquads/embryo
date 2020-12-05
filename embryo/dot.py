@@ -51,7 +51,7 @@ class DotFileManager(object):
             for embryo_name, context_list in embryo_name2context_list.items():
                 count = len(context_list)
                 say(
-                    'Loading embryo: "{name}" ({count}x)...',
+                    'loading embryo: "{name}" ({count}x)...',
                     name=embryo_name,
                     count=count
                 )
@@ -103,7 +103,7 @@ class DotFileManager(object):
 
         # create or load the .embryo/ dir in the "root" dir
         if not os.path.isdir(dot_embryo_path):
-            say('Creating .embryo directory: {path}', path=dot_embryo_path)
+            say('creating .embryo directory: {path}', path=dot_embryo_path)
             os.mkdir(dot_embryo_path)
 
         # load the JSON file
@@ -128,7 +128,7 @@ class DotFileManager(object):
             embryo_name_2_contexts[embryo.name].append(clean_embryo_context)
 
         # write the appended data back to the JSON file
-        say('Saving context to .embryo/context.json file')
+        say('saving context to .embryo/context.json file')
         Json.write(
             context_json_path,
             Json.load(Json.dump(embryo_name_2_contexts)),

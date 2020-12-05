@@ -20,22 +20,17 @@ from .constants import (
     PROMPT_STYLES,
 )
 from .exceptions import EmbryoNotFound
+from .logging import logger
 
 
-def say(fstr, **format_vars) -> None:
-    fstr = fstr if isinstance(fstr, str) else str(fstr)
-    if format_vars:
-        print(PROMPT_STYLES['say'] + ' ' + fstr.format(**format_vars))
-    else:
-        print(PROMPT_STYLES['say'] + ' ' + fstr)
+def say(message, **data) -> None:
+    logger.debug(message, data=data if data else None)
 
 
-def shout(fstr, **format_vars) -> None:
-    fstr = fstr if isinstance(fstr, str) else str(fstr)
-    if format_vars:
-        print(PROMPT_STYLES['scream'] + ' ' + fstr.format(**format_vars))
-    else:
-        print(PROMPT_STYLES['scream'] + ' ' + fstr)
+def shout(message, **data) -> None:
+    if isinstance(message, Exception):
+        message = repr(message)
+    logger.error(message, data=data if data else None)
 
 
 def build_embryo_filepath(embryo_path: str, file_code: str) -> str:

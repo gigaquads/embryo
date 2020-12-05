@@ -8,13 +8,14 @@ from jinja2.exceptions import TemplateSyntaxError
 
 from appyratus.files import (
     File,
-    Yaml,
     Json,
+    Yaml,
 )
 from appyratus.schema import (
     Schema,
     fields,
 )
+from appyratus.utils import PathUtils
 
 from .constants import (
     NESTED_EMBRYO_KEY,
@@ -33,10 +34,12 @@ from .filesystem import (
     JsonAdapter,
     MarkdownAdapter,
     PythonAdapter,
+    ShellAdapter,
     TextAdapter,
     YamlAdapter,
 )
 from .relationship import RelationshipManager
+from .logging import logger
 from .renderer import Renderer
 from .utils import (
     build_embryo_filepath,
@@ -109,6 +112,7 @@ class Embryo(object):
             TextAdapter(),
             YamlAdapter(multi=True),
             FileAdapter(),
+            ShellAdapter(),
         ]
 
     @property
@@ -184,8 +188,8 @@ class Embryo(object):
         in the templates/ dir as well as the tree.yml file, which is also a
         template.
         """
-        say('Stimulating embryonic growth sequence...')
-        say('Hatching Embryo: "{name}"', name=self.name)
+        say('stimulating embryonic growth sequence...')
+        say('hatching Embryo: "{name}"', name=self.name)
 
         if (not self.standalone()) and self.related:
             # Load all Embryo objects discovered in
@@ -198,7 +202,7 @@ class Embryo(object):
             # using Relationship ctor arguments.
             self.related = RelationshipManager().load(self)
 
-        say('Running embryo.pre_create...')
+        say('running embryo.pre_create...')
         self.pre_create(self.context)
 
         # Now there can be no more edits to self.context,
@@ -224,7 +228,7 @@ class Embryo(object):
         # "nested" in tree.yml.
         self._load_nested_embryos()
 
-        say('Running embryo.on_create...')
+        say('running embryo.on_create...')
         self.on_create(self.dumped_context)
 
         # Write files loaded by FileManager back to disk,
@@ -235,7 +239,7 @@ class Embryo(object):
         # depth-first traversal.
         self._hatch_nested_embryos()
 
-        say('Running embryo.post_create...')
+        say('running embryo.post_create...')
         self.post_create(self.dumped_context)
 
     def _load_nested_embryos(self):
@@ -266,7 +270,7 @@ class Embryo(object):
 
         def load_embryo(embryo_name, context_path, dest_dir):
             assert self.context
-            say(f'Hatching nested embryo {embryo_name}...')
+            say(f'hatching nested embryo {embryo_name}...')
             context = self.context.copy()
             if context_path:
                 found_context = get_nested_dict(self.context, context_path)
@@ -297,7 +301,7 @@ class Embryo(object):
             result, errors = schema.process(self.context)
             if errors:
                 shout(
-                    'Failed to load context: {errors}',
+                    'failed to load context: {errors}',
                     errors=Json.dump(errors, indent=2, sort_keys=True)
                 )
                 exit(-1)
@@ -345,7 +349,7 @@ class Embryo(object):
         """
         assert self.dumped_context is not None
 
-        say('Loading templates...')
+        say('loading templates...')
 
         context = self.dumped_context
         templates_path = build_embryo_filepath(self.path, 'templates')
@@ -374,7 +378,7 @@ class Embryo(object):
                     fname_template = self.jinja_env.from_string(rel_fpath)
                 except TemplateSyntaxError:
                     shout(
-                        'Could not render template '
+                        'could not render template '
                         'for file path string: {p}', p=fpath
                     )
                     raise
@@ -397,7 +401,7 @@ class Embryo(object):
         """
         assert self.dumped_context is not None
 
-        say('Rendering tree.yml...')
+        say('rendering tree.yml...')
 
         context = self.dumped_context.copy()
         context.update(self.related)
@@ -405,8 +409,18 @@ class Embryo(object):
 
         tree_yml_tpl = File.read(fpath)
         if tree_yml_tpl is None:
-            shout('No tree.yml file in {}'.format(fpath))
+            shout('no tree.yml file in {}'.format(fpath))
             return
         tree_yml = self.jinja_env.from_string(tree_yml_tpl).render(context)
         tree = Yaml.load(tree_yml)
         return tree
+
+    def make_executable(self, file_match):
+        executables = [k for k in self.fs.find_metadata(file_match).keys()]
+        if not executables:
+            return
+        say(f'found {len(executables)} executable matching "{file_match}"')
+        user, group, world = True, True, None
+        for exe in executables:
+            say(f'making {exe} executable, [u {user}, g {group}, w {world}]')
+            PathUtils.make_executable(exe, user=user, group=group, world=world)

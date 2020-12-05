@@ -44,8 +44,9 @@ class DotFileManager(object):
 
         for path, subpaths, fnames in os.walk(root):
             json_fpath = os.path.join(path, '.embryo/context.json')
-            if os.path.isfile(json_fpath):
-                say('Loading embryos from {path}...', path=json_fpath)
+            # if os.path.isfile(json_fpath):
+            # TODO: re-enable logging when logger interface is updated
+            #     say('Loading embryos from {path}...', path=json_fpath)
             embryo_name2context_list = self._load_context_json(json_fpath)
             for embryo_name, context_list in embryo_name2context_list.items():
                 count = len(context_list)
@@ -56,6 +57,12 @@ class DotFileManager(object):
                 )
                 for context in context_list:
                     embryo = self._load_embryo(context)
+                    if embryo is None:
+                        shout(
+                            f'failed to load embryo from .embryo/'
+                            f'context.json: {context}'
+                        )
+                        continue
 
                     # the `path_key` is is the relative path to the current
                     # `path` directory, prepended with a '/'
@@ -121,7 +128,7 @@ class DotFileManager(object):
             embryo_name_2_contexts[embryo.name].append(clean_embryo_context)
 
         # write the appended data back to the JSON file
-        say('Saving context to {path}', path=context_json_path)
+        say('Saving context to .embryo/context.json file')
         Json.write(
             context_json_path,
             Json.load(Json.dump(embryo_name_2_contexts)),
@@ -146,10 +153,21 @@ class DotFileManager(object):
         from a context.json file.
         """
         name = context['embryo']['name']
-        embryo_path = resolve_embryo_path(self._embryo_search_path, name)
+
+        try:
+            embryo_path = resolve_embryo_path(
+                self._embryo_search_path, name
+            )
+        except Exception as exc:
+            shout(exc)
+            return None
+
         embryo_class = import_embryo_class(embryo_path)
-        embryo = embryo_class(embryo_path, context)
-        return embryo
+        if embryo_class is not None:
+            embryo = embryo_class(embryo_path, context)
+            return embryo
+        else:
+            return None
 
     def _resolve_dot_dir(self, embryo):
 

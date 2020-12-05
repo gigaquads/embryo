@@ -225,17 +225,17 @@ class FileManager(object):
         overwrite anything.
         """
         if not exists(root):
+            say(f'Creating {root}')
             os.makedirs(root)
-            say('Creating directory: {path}', path=root)
         for dir_path in dir_paths:
-            path = join(root, './{}'.format(dir_path))
+            path = join(root, f'./{dir_path}')
             if not exists(path):
-                say('Creating directory: {path}', path=path)
+                say(f'Creating {path}')
                 os.makedirs(path)
         for fpath in file_paths:
             path = join(root, './{}'.format(fpath))
             if not os.path.isfile(path) and not path.endswith('.embryo'):
-                say('Touching file: {path}', path=path)
+                say(f'Creating {path}')
                 open(path, 'a').close()
 
     def read(self, embryo):
@@ -275,7 +275,7 @@ class FileManager(object):
         filesystem.
         """
         for abs_path, metadata in self._abs_path2metadata.items():
-            say('Writing back file: {path}', path=abs_path)
+            say(f'Writing back {abs_path} to disk')
             metadata.adapter.write(abs_path, metadata.file_obj)
 
     def _read_file(self, abs_path, embryo):
@@ -285,10 +285,8 @@ class FileManager(object):
         """
         ext = PathUtils.get_extension(abs_path)
         adapter = embryo.ext2adapter.get(ext)
-        if not adapter:
-            say("Adapter not found for extension '{}' [{}]".format(ext, abs_path))
         if adapter and os.path.isfile(abs_path):
-            say('Reading: {path}', path=abs_path)
+            say(f'Reading {abs_path}')
             file_obj = adapter.read(abs_path)
             metadata = FileMetadata(file_obj, adapter)
             self._abs_path2metadata[abs_path] = metadata

@@ -23,11 +23,19 @@ from .exceptions import EmbryoNotFound
 
 
 def say(fstr, **format_vars) -> None:
-    print(PROMPT_STYLES['say'] + ' ' + fstr.format(**format_vars))
+    fstr = fstr if isinstance(fstr, str) else str(fstr)
+    if format_vars:
+        print(PROMPT_STYLES['say'] + ' ' + fstr.format(**format_vars))
+    else:
+        print(PROMPT_STYLES['say'] + ' ' + fstr)
 
 
 def shout(fstr, **format_vars) -> None:
-    print(PROMPT_STYLES['scream'] + ' ' + fstr.format(**format_vars))
+    fstr = fstr if isinstance(fstr, str) else str(fstr)
+    if format_vars:
+        print(PROMPT_STYLES['scream'] + ' ' + fstr.format(**format_vars))
+    else:
+        print(PROMPT_STYLES['scream'] + ' ' + fstr)
 
 
 def build_embryo_filepath(embryo_path: str, file_code: str) -> str:
@@ -84,6 +92,16 @@ def resolve_embryo_path(search_path: List[str], name: str) -> str:
             if PathUtils.exists(path):
                 return path
 
+    def is_embryo(path):
+        return os.path.isdir(path) and 'embryo.py' in os.listdir(path)
+
+    for root_path in search_path:
+        embryo_dirpath = PathUtils.join(root_path, name)
+        if is_embryo(embryo_dirpath):
+            return embryo_dirpath
+        if is_embryo(embryo_dirpath.replace('-', '_')):
+            return embryo_dirpath
+
     raise EmbryoNotFound(name)
 
 
@@ -117,7 +135,11 @@ def import_embryo_class(embryo_path: str) -> 'Embryo':
         # imprt the embryo.py module
         spec = spec_from_file_location('module', abs_filepath)
         module = module_from_spec(spec)
-        spec.loader.exec_module(module)
+        try:
+            spec.loader.exec_module(module)
+        except Exception:
+            shout(f'error when loading module {abs_filepath}')
+            return None
 
         # create an instance of the first Embryo subclass found
         for _, klass in inspect.getmembers(module, inspect.isclass):
@@ -139,10 +161,11 @@ def get_embryo_resource(embryo_name: str) -> tuple:
 
     embryo_path = resolve_embryo_path(embryo_search_path, embryo_name)
 
-    say(
-        'Searching for embryos in...\n\n    - {paths}\n',
-        paths='\n    - '.join(embryo_search_path)
-    )
+    # TODO: re-enable logging after logger interface updated
+    # say(
+    #     'Searching for embryos in...\n\n    - {paths}\n',
+    #     paths='\n    - '.join(embryo_search_path)
+    # )
 
     # import the Embryo class from embryo dir and instantiate it.
     embryo_class = import_embryo_class(embryo_path)

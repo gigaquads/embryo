@@ -9,13 +9,17 @@ from typing import (
 )
 
 from appyratus.files import (
+    Css,
     File,
+    Html,
     Ini,
     Json,
+    Markdown,
     PythonModule,
-    Text,
-    Yaml,
+    Shell,
 )
+from appyratus.files import Text as TextFile
+from appyratus.files import Yaml
 from appyratus.utils import PathUtils
 
 from .constants import RE_RENDERING_METADATA
@@ -66,7 +70,7 @@ class JsonAdapter(FileTypeAdapter):
 
     @property
     def extensions(self) -> set:
-        return {'json'}
+        return Json.extensions()
 
     def read(self, abs_path: Text) -> dict:
         return Json.read(abs_path)
@@ -87,7 +91,7 @@ class YamlAdapter(FileTypeAdapter):
 
     @property
     def extensions(self) -> set:
-        return {'yml', 'yaml'}
+        return Yaml.extensions()
 
     def load(self, data):
         return Yaml.load(data, multi=self._multi)
@@ -103,7 +107,7 @@ class IniAdapter(FileTypeAdapter):
 
     @property
     def extensions(self) -> set:
-        return {'ini', 'cfg'}
+        return Ini.extensions()
 
     def read(self, abs_path: Text) -> dict:
         return Ini.read(path=abs_path)
@@ -116,41 +120,41 @@ class TextAdapter(FileTypeAdapter):
 
     @property
     def extensions(self) -> set:
-        return {'txt'}
+        return TextFile.extensions()
 
     def read(self, abs_path: Text) -> Text:
-        return Text.read(path=abs_path)
+        return TextFile.read(path=abs_path)
 
     def write(self, abs_path: Text, data=None) -> None:
-        Text.write(path=abs_path, data=data)
+        TextFile.write(path=abs_path, data=data)
 
 
 class HtmlAdapter(TextAdapter):
 
     @property
     def extensions(self) -> set:
-        return {'htm', 'html'}
+        return Html.extensions()
 
 
 class MarkdownAdapter(TextAdapter):
 
     @property
     def extensions(self) -> set:
-        return {'md'}
+        return Markdown.extensions()
 
 
 class CssAdapter(TextAdapter):
 
     @property
     def extensions(self) -> set:
-        return {'css'}
+        return Css.extensions()
 
 
 class ShellAdapter(TextAdapter):
 
     @property
     def extensions(self) -> set:
-        return {'sh'}
+        return Shell.extensions()
 
 
 class PythonAdapter(TextAdapter):
@@ -167,7 +171,7 @@ class PythonAdapter(TextAdapter):
 
     @property
     def extensions(self) -> set:
-        return {'py'}
+        return PythonModule.extensions()
 
     def read(self, abs_path: Text) -> Text:
         return PythonModule.read(path=abs_path, preserve_comments=self._preserve_comments)

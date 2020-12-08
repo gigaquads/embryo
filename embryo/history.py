@@ -1,7 +1,12 @@
 from typing import Text
 
 from appyratus.files import Json
-from appyratus.utils import DictUtils, TimeUtils
+from appyratus.utils import (
+    DictUtils,
+    TimeUtils,
+)
+
+from .constants import EMBRYO_DOTFILE_CONTEXT_FILENAME
 
 
 class History(object):
@@ -9,6 +14,7 @@ class History(object):
     @classmethod
     def read_context(cls, path: Text = None):
         if path is None:
+            # TODO update this to use path resolver
             path = '.embryo/context.json'
         context = Json.read(path)
         embryo_commands = cls.parse_context(context)

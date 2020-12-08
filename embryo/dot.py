@@ -8,7 +8,9 @@ from typing import (
 )
 
 from appyratus.files import Json
+from appyratus.utils import PathUtils
 
+from .constants import EMBRYO_DOTFILE_PATH, EMBRYO_DOTFILE_CONTEXT_FILENAME
 from .utils import (
     build_embryo_search_path,
     import_embryo_class,
@@ -23,7 +25,7 @@ class DotFileManager(object):
     `DotFileManager` handles the loading of contents stored under the .embryo
     directories contained within the filesystem tree defined by an embryo. It
     provides a high-level interface for searching historical Embryo objects
-    whose context data was discovered in .embryo/context.json files.
+    whose context data was discovered in embryo context files.
     """
 
     def __init__(self):
@@ -34,7 +36,7 @@ class DotFileManager(object):
 
     def load(self, embryo: 'Embryo') -> None:
         """
-        To be run *after* the renderer is built. This loads all context.json
+        To be run *after* the renderer is built. This loads all embryo context
         files found in the filesystem, relative to a root directory. It imports
         and instantiates the Python Embryo objects corresponding to the persist
         context entries. This is called by the embryo `apply_on_create` method.
@@ -43,7 +45,7 @@ class DotFileManager(object):
         root = embryo.destination
 
         for path, subpaths, fnames in os.walk(root):
-            json_fpath = os.path.join(path, '.embryo/context.json')
+            json_fpath = os.path.join(path, f'.embryo/{EMBRYO_DOTFILE_CONTEXT_FILENAME}')
             if os.path.isfile(json_fpath):
                 say('Loading embryos from {path}...', path=json_fpath)
             embryo_name2context_list = self._load_context_json(json_fpath)
@@ -88,10 +90,10 @@ class DotFileManager(object):
     def persist(self, embryo: 'Embryo') -> None:
         """
         Initialize the .embryo directory if it doesn't exist and append the
-        embryo's context dict to the context.json file.
+        embryo's context dict to the embryo context file.
         """
         dot_embryo_path = self._resolve_dot_dir(embryo)
-        context_json_path = os.path.join(dot_embryo_path, 'context.json')
+        context_json_path = os.path.join(dot_embryo_path, EMBRYO_DOTFILE_CONTEXT_FILENAME)
         embryo_name_2_contexts = {}
 
         # create or load the .embryo/ dir in the "root" dir
@@ -129,9 +131,18 @@ class DotFileManager(object):
             sort_keys=True
         )
 
+    def _find_context(self, path: Text = None):
+        """
+        Find the embryo context file
+        """
+        path = path if path else EMBRYO_DOTFILE_PATH
+        filename = filename if filename else EMBRYO_DOTFILE_CONTEXT_FILENAME
+        context_path = PathUtils.join(path, filename)
+        return
+
     def _load_context_json(self, context_json_fpath: Text) -> Dict:
         """
-        Read in a context.json file to a dict.
+        Read in a embryo context file to a dict.
         """
         loaded_json_obj = {}
 
@@ -143,7 +154,7 @@ class DotFileManager(object):
     def _load_embryo(self, context) -> 'Embryo':
         """
         Import and instantiate an Embryo object using a context dict loaded
-        from a context.json file.
+        from an embryo context file.
         """
         name = context['embryo']['name']
         embryo_path = resolve_embryo_path(self._embryo_search_path, name)
@@ -181,4 +192,4 @@ class DotFileManager(object):
                 if dot_dir:
                     return dot_dir
 
-        return os.path.join(embryo.destination, '.embryo')
+        return os.path.join(embryo.destination, EMBRYO_DOTFILE_CONTEXT_FILENAME)

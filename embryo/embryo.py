@@ -175,7 +175,7 @@ class Embryo(object):
 
     def persist(self):
         """
-        Write this embryo's context to its .embryo/context.json file.
+        Write this embryo's context to its embryo context file.
         """
         self.dot.persist(self)
 
@@ -191,7 +191,7 @@ class Embryo(object):
         say('Destination: {dest}', dest=self.destination)
 
         # Load all Embryo objects discovered in
-        # context.json files present in the filesystem,
+        # embryo context files present in the filesystem,
         # relative to this embryo's destination directory.
         self.dot.load(self)
 
@@ -313,7 +313,7 @@ class Embryo(object):
         Context can come from three places and is merged into a computed dict
         in the following order:
 
-            1. Data in the embryo's static context.json/yml file.
+            1. Data in the embryo's static embryo context file.
             2. Variables provided on the commandline interface, like --foo 1.
             3. Data provided from a file, named in the --context arg.
         """

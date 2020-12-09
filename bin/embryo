@@ -166,7 +166,7 @@ class HistorySubparser(Subparser):
     def perform(program):
         embryo_commands = History.read_context('')
         for timestamp, command in embryo_commands:
-            say('{timestamp} {command}', timestamp=timestamp, command=command)
+            say(f'{timestamp} {command}')
 
 
 if __name__ == "__main__":

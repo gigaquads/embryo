@@ -55,12 +55,18 @@ class DotFileManager(object):
             for embryo_name, context_list in embryo_name2context_list.items():
                 count = len(context_list)
                 say(
-                    'Loading embryo: "{name}" ({count}x)...',
+                    'loading embryo: "{name}" ({count}x)...',
                     name=embryo_name,
                     count=count
                 )
                 for context in context_list:
                     embryo = self._load_embryo(context)
+                    if embryo is None:
+                        shout(
+                            f'failed to load embryo from .embryo/'
+                            f'context.json: {context}'
+                        )
+                        continue
 
                     # the `path_key` is is the relative path to the current
                     # `path` directory, prepended with a '/'
@@ -129,7 +135,7 @@ class DotFileManager(object):
             embryo_name_2_contexts[embryo.name].append(clean_embryo_context)
 
         # write the appended data back to the JSON file
-        say('Saving context to {path}', path=context_path)
+        say('saving context to {path}', path=context_path)
         contents = Json.load(Json.dump(embryo_name_2_contexts))
         context_type.write(context_path, contents)
 
@@ -182,10 +188,19 @@ class DotFileManager(object):
         from an embryo context file.
         """
         name = context['embryo']['name']
-        embryo_path = resolve_embryo_path(self._embryo_search_path, name)
+
+        try:
+            embryo_path = resolve_embryo_path(self._embryo_search_path, name)
+        except Exception as exc:
+            shout(exc)
+            return None
+
         embryo_class = import_embryo_class(embryo_path)
-        embryo = embryo_class(embryo_path, context)
-        return embryo
+        if embryo_class is not None:
+            embryo = embryo_class(embryo_path, context)
+            return embryo
+        else:
+            return None
 
     @classmethod
     def _build_metadir(cls, path: Text = None):

@@ -1,4 +1,7 @@
 from appyratus.logging import ConsoleLoggerInterface
-from .constants import CONSOLE_LOG_LEVEL
+from .constants import EMBRYO_CONSOLE_LOG_LEVEL
 
-logger = ConsoleLoggerInterface('embryo', level=CONSOLE_LOG_LEVEL)
+
+logger = ConsoleLoggerInterface(
+    'embryo', level=EMBRYO_CONSOLE_LOG_LEVEL
+)

@@ -69,13 +69,15 @@ class Renderer(object):
         self._buildjinja2_templates()
         self._analyze_embryo()
 
-        say(
-            'Context:\n\n{ctx}\n',
-            ctx=Json.dump(self.embryo.context, indent=2, sort_keys=True)
-        )
+        # prepare a copy of the context for logging purposes only
+        ctx = self.embryo.dumped_context.copy()
+        del ctx['embryo']
+        
+        ctx_json = Json.dump(ctx, indent=2, sort_keys=True)
 
+        say(f'context:\n\n{ctx_json}\n')
         say(
-            'Tree:\n\n{tree}',
+            'tree:\n\n{tree}',
             tree='\n'.join(
                 ' ' * 4 + line for line in yaml.dump(
                     self.embryo.tree,
@@ -114,7 +116,7 @@ class Renderer(object):
 
         if templates:
             for k, v in templates.items():
-                say('Loading template: {}'.format(k))
+                say('loading template: {}'.format(k))
                 if isinstance(v, Template):
                     loaded_templates[k] = v
                 elif isinstance(v, str):
@@ -123,7 +125,7 @@ class Renderer(object):
                     except Exception as exc:
                         source = exc.source.split('\n')[exc.lineno - 1]
                         shout(
-                            'Error "{message}", line {line} {source}',
+                            'error "{message}", line {line} {source}',
                             message=exc.message,
                             line=exc.lineno,
                             source=source
@@ -188,6 +190,29 @@ class Renderer(object):
                 dir_name = obj
                 dir_path = join(parent_path, dir_name)
                 self.directory_paths.add(dir_path)
+            elif ':' in obj:
+                parts = obj.split(':')
+                if parts[0] == 'embryo':
+                    # embryo:falcon_app(foo)
+                    match = RE_RENDERING_EMBRYO.match(parts[1])
+                    nested_embryo_name, ctx_key = match.groups()
+                    self.nested_embryos.append(
+                        {
+                            'embryo_name': nested_embryo_name,
+                            'context_path': ctx_key,
+                            'dir_path': parent_path,
+                        }
+                    )
+                else:
+                    fname, metadata_str = parts
+                    match = RE_RENDERING_METADATA.match(metadata_str)
+                    tpl_name, ctx_key = match.groups()
+                    fpath = join(parent_path, fname)
+                    self.template_meta[fpath] = {
+                        'template_name': tpl_name,
+                        'context_path': ctx_key,
+                    }
+                    self.fpaths.add(fpath)
             else:
                 # it's a plain ol' file name
                 fname = obj
@@ -250,10 +275,10 @@ class Renderer(object):
             raise TemplateNotFound(template_name)
 
         try:
-            say('Rendering {t}', t=template_name)
+            say(f'rendering {template_name}')
             rendered_text = template.render(context).strip()
         except Exception:
-            shout('Problem rendering {t}', t=template_name)
+            shout('problem rendering {t}', t=template_name)
             raise
         return rendered_text
 
@@ -269,12 +294,12 @@ class Renderer(object):
         recognized by this `Renderer`.
         """
         try:
-            say('Rendering template {p}', p=abs_fpath)
+            say(f'rendering {abs_fpath[1+len(self.embryo.destination):]}')
             rendered_text = self.render_template(
                 template_name=template_name, context=context
             )
         except Exception:
-            shout('Problem rendering {p}', p=abs_fpath)
+            shout('problem rendering {p}', p=abs_fpath)
             raise
 
         formatted_text = rendered_text

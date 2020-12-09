@@ -1,10 +1,8 @@
-import inspect
 import os
+
 from collections import defaultdict
-from typing import (
-    Dict,
-    List,
-)
+from datetime import datetime
+from typing import Dict, List, Text
 
 from jinja2.exceptions import TemplateSyntaxError
 
@@ -20,7 +18,6 @@ from appyratus.schema import (
 from appyratus.utils import PathUtils
 
 from .constants import (
-    EMBRYO_FILE_NAMES,
     NESTED_EMBRYO_KEY,
     RE_RENDERING_EMBRYO,
 )
@@ -41,11 +38,8 @@ from .filesystem import (
     TextAdapter,
     YamlAdapter,
 )
+from .relationship import RelationshipManager
 from .logging import logger
-from .relationship import (
-    Relationship,
-    RelationshipManager,
-)
 from .renderer import Renderer
 from .utils import (
     build_embryo_filepath,
@@ -85,7 +79,6 @@ class Embryo(object):
 
     def __init__(self, path: str, context: Dict):
         self.path = path
-
         self.jinja_env = build_env()
         self.context = self._build_context(context)
         self.schema = self.context_schema()
@@ -135,28 +128,38 @@ class Embryo(object):
         return self.context['embryo']['name']
 
     @property
-    def destination(self):
+    def destination(self) -> Text:
+        """
+        The directory into which this embryo is generated, AKA hatched.
+        """
         return self.context['embryo']['destination']
 
     @property
-    def timestamp(self):
+    def timestamp(self) -> datetime:
+        """
+        UTC datetime object, recording when this embryo was hatched.
+        """
         return self.context['embryo']['timestamp']
 
-    @staticmethod
-    def context_schema():
+    @classmethod
+    def standalone(cls) -> bool:
+        return False
+
+    @classmethod
+    def context_schema(cls) -> 'Schema':
         """
         Returns an instance of a Schema class, which is applied to the context
         dict, using schema.process(context). A return value of None skips this
         process, i.e. it is optional.
         """
-        return ContextSchema()
+        return cls.Schema()
 
     def pre_create(self, context) -> None:
         """
-        Perform any side-effects or preprocessing before the embryo Renderer and
-        related objects are created. if a context_schema exists, the `context`
-        argument is the marshaled result of calling `schema.process(context)`.
-        This method should be overridden.
+        Perform any side-effects or preprocessing before the embryo Renderer
+        and related objects are created. if a context_schema exists, the
+        `context` argument is the marshaled result of calling
+        `schema.process(context)`.  This method should be overridden.
         """
 
     def on_create(self, context) -> None:
@@ -185,22 +188,21 @@ class Embryo(object):
         in the templates/ dir as well as the tree.yml file, which is also a
         template.
         """
-        say('Stimulating embryonic growth sequence...')
-        say('Hatching Embryo: "{name}"', name=self.name)
-        say('Embryo Location: {path}', path=self.path)
-        say('Destination: {dest}', dest=self.destination)
+        say('stimulating embryonic growth sequence...')
+        say('hatching Embryo: "{name}"', name=self.name)
 
-        # Load all Embryo objects discovered in
-        # embryo context files present in the filesystem,
-        # relative to this embryo's destination directory.
-        self.dot.load(self)
+        if (not self.standalone()) and self.related:
+            # Load all Embryo objects discovered in
+            # context.json files present in the filesystem,
+            # relative to this embryo's destination directory.
+            self.dot.load(self)
 
-        # Generates a dict that maps relationship name
-        # to Embryo object, found by the dot file manager,
-        # using Relationship ctor arguments.
-        self.related = RelationshipManager().load(self)
+            # Generates a dict that maps relationship name
+            # to Embryo object, found by the dot file manager,
+            # using Relationship ctor arguments.
+            self.related = RelationshipManager().load(self)
 
-        say('Running pre-create method...')
+        say('running embryo.pre_create...')
         self.pre_create(self.context)
 
         # Now there can be no more edits to self.context,
@@ -215,7 +217,6 @@ class Embryo(object):
         # Load raw template strings into dict with absolute
         # file paths as keys.
         self.templates = self._load_templates()
-
         # Render the files declared in the tree.
         self.renderer.render(self)
 
@@ -227,7 +228,7 @@ class Embryo(object):
         # "nested" in tree.yml.
         self._load_nested_embryos()
 
-        say('Running on-create method...')
+        say('running embryo.on_create...')
         self.on_create(self.dumped_context)
 
         # Write files loaded by FileManager back to disk,
@@ -238,7 +239,7 @@ class Embryo(object):
         # depth-first traversal.
         self._hatch_nested_embryos()
 
-        say('Running post-create method...')
+        say('running embryo.post_create...')
         self.post_create(self.dumped_context)
 
     def _load_nested_embryos(self):
@@ -258,20 +259,29 @@ class Embryo(object):
                     else:
                         child_nodes = obj[key]
                         load_recursive(child_nodes, os.path.join(path, key))
+                elif isinstance(obj, str) and obj.count(':') == 1:
+                    parts = obj.split(':')
+                    if parts[0] != NESTED_EMBRYO_KEY:
+                        continue
+                    match = RE_RENDERING_EMBRYO.match(parts[1])
+                    embryo_name, context_path = match.groups()
+                    dest_dir = os.path.abspath(path)
+                    load_embryo(embryo_name, context_path, dest_dir)
 
         def load_embryo(embryo_name, context_path, dest_dir):
-            assert self.loaded_context
-            say('Hatching nested embryo: {name}...', name=embryo_name)
-            found_context = get_nested_dict(self.loaded_context, context_path)
-            if found_context:
-                context = found_context.copy()
-            else:
-                context = {}
+            assert self.context
+            say(f'hatching nested embryo {embryo_name}...')
+            context = self.context.copy()
+            if context_path:
+                found_context = get_nested_dict(self.context, context_path)
+                if found_context:
+                    context = found_context.copy()
             context['embryo'] = self.context['embryo']
             embryo_path = resolve_embryo_path(search_path, embryo_name)
             embryo_factory = import_embryo_class(embryo_path)
-            embryo = embryo_factory(embryo_path, context)
-            self.nested[dest_dir].append(embryo)
+            if embryo_factory is not None:
+                embryo = embryo_factory(embryo_path, context)
+                self.nested[dest_dir].append(embryo)
 
         # this loads the embryos into self.nested
         load_recursive(self.tree, '')
@@ -291,7 +301,7 @@ class Embryo(object):
             result, errors = schema.process(self.context)
             if errors:
                 shout(
-                    'Failed to load context: {errors}',
+                    'failed to load context: {errors}',
                     errors=Json.dump(errors, indent=2, sort_keys=True)
                 )
                 exit(-1)
@@ -302,6 +312,7 @@ class Embryo(object):
     def _dump_context(self):
         """
         Dump schema to context and update with related attributes
+        # XXX Is this even necessary anymore?
         """
         assert self.loaded_context is not None
         dumped_context, errors = self.schema.process(self.loaded_context)
@@ -338,7 +349,7 @@ class Embryo(object):
         """
         assert self.dumped_context is not None
 
-        say('Loading templates...')
+        say('loading templates...')
 
         context = self.dumped_context
         templates_path = build_embryo_filepath(self.path, 'templates')
@@ -367,7 +378,7 @@ class Embryo(object):
                     fname_template = self.jinja_env.from_string(rel_fpath)
                 except TemplateSyntaxError:
                     shout(
-                        'Could not render template '
+                        'could not render template '
                         'for file path string: {p}', p=fpath
                     )
                     raise
@@ -390,7 +401,7 @@ class Embryo(object):
         """
         assert self.dumped_context is not None
 
-        say('Rendering tree.yml...')
+        say('rendering tree.yml...')
 
         context = self.dumped_context.copy()
         context.update(self.related)
@@ -398,7 +409,7 @@ class Embryo(object):
 
         tree_yml_tpl = File.read(fpath)
         if tree_yml_tpl is None:
-            shout('No tree in {}'.format(fpath))
+            shout('no tree.yml file in {}'.format(fpath))
             return
         tree_yml = self.jinja_env.from_string(tree_yml_tpl).render(context)
         tree = Yaml.load(tree_yml)

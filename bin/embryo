@@ -9,8 +9,7 @@ from appyratus.schema import fields
 
 from embryo import Incubator
 from embryo.utils import say, shout
-
-context = Json.read('.embryo/context.json')
+from embryo.history import History
 
 
 def main():
@@ -158,44 +157,16 @@ class HatchSubparser(Subparser):
 
 
 class HistorySubparser(Subparser):
+    """
+    # History Subparser
+    See embryo.history for related functionality
+    """
 
     @staticmethod
     def perform(program):
-        embryo_commands = HistorySubparser.parse_context(context)
-
-        embryo_commands.sort(key=lambda tup: tup[0])
-        used_commands = []
+        embryo_commands = History.read_context('')
         for timestamp, command in embryo_commands:
-            if command in used_commands:
-                continue
-            used_commands.append(command)
-            say(
-                '{timestamp} {command}',
-                timestamp=TimeUtils.from_timestamp(timestamp),
-                command=command
-            )
-
-    @staticmethod
-    def parse_context(context):
-        commands = []
-        if context is None:
-            context = {}
-        for embryo, contexts in context.items():
-            for context in contexts:
-                embryo_data = context['embryo']
-                del context['embryo']
-                flat_context = DictUtils.flatten_keys(context)
-                context_args = [
-                    '--{} {}'.format(k, v) for k, v in flat_context.items()
-                    if v is not None
-                ]
-                command = 'embryo {} {} {}'.format(
-                    embryo_data['action'], embryo, ' '.join(context_args)
-                )
-                timestamp = embryo_data['timestamp']
-                commands.append((timestamp, command))
-
-        return commands
+            say(f'{timestamp} {command}')
 
 
 if __name__ == "__main__":

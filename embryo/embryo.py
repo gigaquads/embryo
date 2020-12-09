@@ -189,7 +189,7 @@ class Embryo(object):
         template.
         """
         say('stimulating embryonic growth sequence...')
-        say('hatching Embryo: "{name}"', name=self.name)
+        say(f'hatching Embryo: "{self.name}"')
 
         if (not self.standalone()) and self.related:
             # Load all Embryo objects discovered in

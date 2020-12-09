@@ -7,16 +7,13 @@ RE_RENDERING_EMBRYO = re.compile(r'^([\w\-\_\/]+)\(([\w\.]*)\)$')
 
 EMBRYO_PATH_ENV_VAR_NAME = 'EMBRYO_PATH'
 
-EMBRYO_DOTFILE_PATH = '.embryo'
-EMBRYO_DOTFILE_CONTEXT_FILENAME = 'context.json'
-
 EMBRYO_FILE_NAMES = {
     'hooks': 'hooks.py',
     'tree': 'tree.yml',
     'embryo': 'embryo.py',
-    'context': 'context.yml',
     'templates': 'templates',
     'metadata-dir': '.embryo',
+    'context': 'context.yml',
 }
 
 NESTED_EMBRYO_KEY = 'embryo'

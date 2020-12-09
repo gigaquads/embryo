@@ -8,6 +8,7 @@ from appyratus.utils import DictUtils, TimeUtils
 from appyratus.schema import fields
 
 from embryo import Incubator
+from embryo.utils import say, shout
 
 context = Json.read('.embryo/context.json')
 
@@ -15,7 +16,7 @@ context = Json.read('.embryo/context.json')
 def main():
     prog = EmbryoProgram(
         name="embryo",
-        version="2.0.1",
+        version="2.0.2",
         tagline="generate this",
     )
     prog.run()
@@ -74,9 +75,11 @@ class HatchSubparser(Subparser):
         # program args have already been built and processed at this point, so
         # they must go through this process again.
         embryo = _incubator.embryo
-        context_fields = embryo.context_schema().fields
+        context_fields = embryo.schema.fields
         nargs = []
         for field_name, field in context_fields.items():
+            if field_name not in cli_args_context:
+                continue
             arg_params = {'name': field.name, 'short_flag': False}
             if isinstance(field, fields.List):
                 arg_params['action'] = 'append'
@@ -88,7 +91,12 @@ class HatchSubparser(Subparser):
 
         nprogram = CliProgram(args=nargs, cli_args=program._raw_cli_args)
         nprogram.run()
-        embryo.context.update(HatchSubparser.load_context(nprogram.cli_args))
+
+        embryo.context.update({
+            k: v for k, v in
+            HatchSubparser.load_context(nprogram.cli_args).items()
+            if k in embryo.schema.fields
+        })
 
         return _incubator.hatch()
 
@@ -161,7 +169,11 @@ class HistorySubparser(Subparser):
             if command in used_commands:
                 continue
             used_commands.append(command)
-            print('{} {}'.format(TimeUtils.from_timestamp(timestamp), command))
+            say(
+                '{timestamp} {command}',
+                timestamp=TimeUtils.from_timestamp(timestamp),
+                command=command
+            )
 
     @staticmethod
     def parse_context(context):
@@ -190,5 +202,5 @@ if __name__ == "__main__":
     try:
         main()
     except Exception as error:
-        print("ERROR {}".format(error))
+        shout(error)
         raise error

@@ -11,76 +11,6 @@
       }
     }
   ],
-  "pybiz-project/api": [
-    {
-      "api": {
-        "name": "history"
-      },
-      "embryo": {
-        "action": "hatch",
-        "name": "pybiz-project/api",
-        "timestamp": 1572391850
-      }
-    }
-  ],
-  "pybiz-project/base": [
-    {
-      "bootstraps": [
-        "cache"
-      ],
-      "embryo": {
-        "action": "hatch",
-        "name": "pybiz-project/base",
-        "timestamp": 1572194450
-      },
-      "project": null
-    }
-  ],
-  "pybiz-project/cli": [
-    {
-      "application": [
-        "cli",
-        "repl"
-      ],
-      "embryo": {
-        "action": "hatch",
-        "name": "pybiz-project/cli",
-        "timestamp": 1572379390
-      },
-      "project": null
-    },
-    {
-      "application": [
-        "cli",
-        "repl"
-      ],
-      "embryo": {
-        "action": "hatch",
-        "name": "pybiz-project/cli",
-        "timestamp": 1572379700
-      },
-      "project": null
-    }
-  ],
-  "pybiz-project/env": [
-    {
-      "embryo": {
-        "action": "hatch",
-        "name": "pybiz-project/env",
-        "timestamp": 1572391258
-      },
-      "project": null
-    }
-  ],
-  "pybiz-project/svc": [
-    {
-      "embryo": {
-        "action": "hatch",
-        "name": "pybiz-project/svc",
-        "timestamp": 1572391184
-      }
-    }
-  ],
   "python-project/base": [
     {
       "description": null,
@@ -92,6 +22,76 @@
       "project": null,
       "tagline": null,
       "version": null
+    }
+  ],
+  "python_project/package": [
+    {
+      "embryo": {
+        "action": "hatch",
+        "name": "python_project/package",
+        "timestamp": 1586980660
+      },
+      "package": {}
+    },
+    {
+      "embryo": {
+        "action": "hatch",
+        "name": "python_project/package",
+        "timestamp": 1586982742
+      },
+      "package": {}
+    },
+    {
+      "embryo": {
+        "action": "hatch",
+        "name": "python_project/package",
+        "timestamp": 1586983142
+      },
+      "package": {}
+    },
+    {
+      "embryo": {
+        "action": "hatch",
+        "name": "python_project/package",
+        "timestamp": 1586983901
+      },
+      "package": {}
+    },
+    {
+      "embryo": {
+        "action": "hatch",
+        "name": "python_project/package",
+        "timestamp": 1586984213
+      },
+      "package": {}
+    },
+    {
+      "embryo": {
+        "action": "hatch",
+        "name": "python_project/package",
+        "timestamp": 1586984251
+      },
+      "package": {
+        "build": false,
+        "check": true,
+        "push": true,
+        "register": false,
+        "test": true
+      }
+    },
+    {
+      "embryo": {
+        "action": "hatch",
+        "name": "python_project/package",
+        "timestamp": 1586984287
+      },
+      "package": {
+        "build": false,
+        "check": true,
+        "push": true,
+        "register": false,
+        "test": false
+      }
     }
   ]
 }

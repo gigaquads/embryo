@@ -1,23 +1,30 @@
 from typing import Text
 
 from appyratus.files import Json
-from appyratus.utils import DictUtils, TimeUtils
+from appyratus.utils import (
+    DictUtils,
+    TimeUtils,
+)
+from embryo.dot import DotFileManager
 
 
 class History(object):
+    """
+    # History
+    Project the state of the embryo context file in time sequence
+    """
 
     @classmethod
     def read_context(cls, path: Text = None):
-        if path is None:
-            path = '.embryo/context.json'
-        context = Json.read(path)
+        _, context, _, _ = DotFileManager.get_context(path)
         embryo_commands = cls.parse_context(context)
         embryo_commands.sort(key=lambda tup: tup[0])
         used_commands = []
         for timestamp, command in embryo_commands:
             if command in used_commands:
                 continue
-            used_commands.append((TimeUtils.from_timestamp(timestamp), command))
+            ts = TimeUtils.from_timestamp(timestamp)
+            used_commands.append((ts, command))
         return used_commands
 
     @classmethod

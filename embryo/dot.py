@@ -7,7 +7,9 @@ from typing import (
     Text,
 )
 
-from appyratus.files import Json
+from appyratus.files import Json, Yaml
+from appyratus.utils import PathUtils as Path
+from embryo.constants import EMBRYO_FILE_NAMES
 
 from .utils import (
     build_embryo_search_path,
@@ -23,7 +25,7 @@ class DotFileManager(object):
     `DotFileManager` handles the loading of contents stored under the .embryo
     directories contained within the filesystem tree defined by an embryo. It
     provides a high-level interface for searching historical Embryo objects
-    whose context data was discovered in .embryo/context.json files.
+    whose context data was discovered in embryo context files.
     """
 
     def __init__(self):
@@ -34,7 +36,7 @@ class DotFileManager(object):
 
     def load(self, embryo: 'Embryo') -> None:
         """
-        To be run *after* the renderer is built. This loads all context.json
+        To be run *after* the renderer is built. This loads all embryo context
         files found in the filesystem, relative to a root directory. It imports
         and instantiates the Python Embryo objects corresponding to the persist
         context entries. This is called by the embryo `apply_on_create` method.
@@ -43,11 +45,13 @@ class DotFileManager(object):
         root = embryo.destination
 
         for path, subpaths, fnames in os.walk(root):
-            json_fpath = os.path.join(path, '.embryo/context.json')
-            # if os.path.isfile(json_fpath):
-            # TODO: re-enable logging when logger interface is updated
-            #     say('Loading embryos from {path}...', path=json_fpath)
-            embryo_name2context_list = self._load_context_json(json_fpath)
+            context_fpath = self._build_metadir(path)
+            context_fpath, context, context_ext, context_type = self.get_context(
+                context_fpath
+            )
+            if os.path.isfile(context_fpath):
+                say('Loading embryos from {path}...', path=context_fpath)
+            embryo_name2context_list = context
             for embryo_name, context_list in embryo_name2context_list.items():
                 count = len(context_list)
                 say(
@@ -95,21 +99,23 @@ class DotFileManager(object):
     def persist(self, embryo: 'Embryo') -> None:
         """
         Initialize the .embryo directory if it doesn't exist and append the
-        embryo's context dict to the context.json file.
+        embryo's context dict to the embryo context file.
         """
-        dot_embryo_path = self._resolve_dot_dir(embryo)
-        context_json_path = os.path.join(dot_embryo_path, 'context.json')
+        context_path = self._resolve_dot_dir(embryo)
+        context_ext = Path.get_extension(context_path)
+        context_type = None
+        metadata_path = Path.get_dir_path(context_path)
         embryo_name_2_contexts = {}
+        context_files = []
 
-        # create or load the .embryo/ dir in the "root" dir
-        if not os.path.isdir(dot_embryo_path):
-            say('creating .embryo directory: {path}', path=dot_embryo_path)
-            os.mkdir(dot_embryo_path)
+        # create or load the metadata dir in the "root" dir
+        if not os.path.isdir(metadata_path):
+            say('Creating metadata directory: {path}', path=metadata_path)
+            Path.create(metadata_path)
 
-        # load the JSON file
-        if os.path.isfile(context_json_path):
-            # read in the current data structure
-            embryo_name_2_contexts = Json.read(context_json_path)
+        context_path, embryo_name_2_contexts, context_ext, context_type = self.get_context(
+            context_path
+        )
 
         # adding to the JSON file data by adding it to the list of other
         # embryos generated here of the same name.
@@ -122,42 +128,69 @@ class DotFileManager(object):
         clean_embryo_context = deepcopy(embryo.loaded_context)
         del clean_embryo_context['embryo']['destination']
 
+        # add the embryo to the context
         if embryo.name not in embryo_name_2_contexts:
             embryo_name_2_contexts[embryo.name] = [clean_embryo_context]
         else:
             embryo_name_2_contexts[embryo.name].append(clean_embryo_context)
 
         # write the appended data back to the JSON file
-        say('saving context to .embryo/context.json file')
-        Json.write(
-            context_json_path,
-            Json.load(Json.dump(embryo_name_2_contexts)),
-            indent=2,
-            sort_keys=True
-        )
+        say('saving context to {path}', path=context_path)
+        contents = Json.load(Json.dump(embryo_name_2_contexts))
+        context_type.write(context_path, contents)
 
-    def _load_context_json(self, context_json_fpath: Text) -> Dict:
+    @classmethod
+    def get_context(cls, context_path: Text):
         """
-        Read in a context.json file to a dict.
+        # Get Context 
+        Get context of the provided context path.  If that path does not exist,
+        then known context file extensions will be tried.  And if those cannot
+        be found then it will rely on the system default provided in constants
+        
+        Known file types include: Yaml, Json
         """
-        loaded_json_obj = {}
+        if not context_path:
+            context_path = cls._build_metadir()
+        context_ext = Path.get_extension(context_path)
+        ext_types = {Yaml, Json}
+        context = None
+        context_files = []
+        for ext_type in ext_types:
+            exts = ext_type.extensions()
+            for ext in exts:
+                new_path = Path.replace_extension(context_path, ext)
+                ref = (new_path, ext, ext_type)
+                if ext == context_ext:
+                    context_files.insert(0, ref)
+                else:
+                    context_files.append(ref)
 
-        if os.path.isfile(context_json_fpath):
-            loaded_json_obj = Json.read(context_json_fpath)
+        # work through known context paths and read in the found data
+        context_found = False
+        for context_path, context_ext, context_type in context_files:
+            if not os.path.isfile(context_path):
+                continue
+            context = context_type.read(context_path)
+            if context:
+                context_found = True
+                break
 
-        return loaded_json_obj
+        # if the context still cannot be found then use the first item in
+        # context files list
+        if not context_found:
+            context_path, context_ext, context_type = context_files[0]
+            context = {}
+        return context_path, context, context_ext, context_type
 
     def _load_embryo(self, context) -> 'Embryo':
         """
         Import and instantiate an Embryo object using a context dict loaded
-        from a context.json file.
+        from an embryo context file.
         """
         name = context['embryo']['name']
 
         try:
-            embryo_path = resolve_embryo_path(
-                self._embryo_search_path, name
-            )
+            embryo_path = resolve_embryo_path(self._embryo_search_path, name)
         except Exception as exc:
             shout(exc)
             return None
@@ -169,10 +202,21 @@ class DotFileManager(object):
         else:
             return None
 
+    @classmethod
+    def _build_metadir(cls, path: Text = None):
+        metadir = EMBRYO_FILE_NAMES['metadata-dir']
+        context = EMBRYO_FILE_NAMES['context']
+        parts = [metadir, context]
+        if path:
+            parts.insert(0, path)
+        return Path.join(*parts)
+
     def _resolve_dot_dir(self, embryo):
+        from embryo.constants import EMBRYO_FILE_NAMES
 
         def is_dot_dir(path):
-            return path.endswith('.embryo')
+            Path.get_dir_name(path) == EMBRYO_FILE_NAMES['metadata-dir']
+            return '.embryo' in path
 
         def analyze_node(node, parent_path: Text = ''):
             if node is None:
@@ -199,4 +243,5 @@ class DotFileManager(object):
                 if dot_dir:
                     return dot_dir
 
-        return os.path.join(embryo.destination, '.embryo')
+        res = self._build_metadir(embryo.destination)
+        return res

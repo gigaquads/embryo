@@ -178,7 +178,7 @@ class Embryo(object):
 
     def persist(self):
         """
-        Write this embryo's context to its .embryo/context.json file.
+        Write this embryo's context to its embryo context file.
         """
         self.dot.persist(self)
 
@@ -324,7 +324,7 @@ class Embryo(object):
         Context can come from three places and is merged into a computed dict
         in the following order:
 
-            1. Data in the embryo's static context.json/yml file.
+            1. Data in the embryo's static embryo context file.
             2. Variables provided on the commandline interface, like --foo 1.
             3. Data provided from a file, named in the --context arg.
         """
@@ -415,7 +415,10 @@ class Embryo(object):
         tree = Yaml.load(tree_yml)
         return tree
 
-    def make_executable(self, file_match):
+    def make_executable(self, file_match: Text):
+        """
+        # Make Executable
+        """
         executables = [k for k in self.fs.find_metadata(file_match).keys()]
         if not executables:
             return

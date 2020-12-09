@@ -12,9 +12,9 @@ EMBRYO_FILE_NAMES = {
     'hooks': 'hooks.py',
     'tree': 'tree.yml',
     'embryo': 'embryo.py',
-    'context': 'context.yml',
     'templates': 'templates',
     'metadata-dir': '.embryo',
+    'context': 'context.yml',
 }
 
 NESTED_EMBRYO_KEY = 'embryo'

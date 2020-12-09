@@ -1,0 +1,45 @@
+#!/usr/bin/env python
+
+import os
+
+from embryo.cli.app import cli
+from embryo.cli.util import expand_path
+
+
+def compute_command_path():
+    path = cli.env.EMBRYO_HATCH_COMMAND_PATH
+    if path:
+        path = expand_path(path)
+        if not os.path.exists(path):
+            cli.log.error(f'command path not found: {path}')
+    else:
+        embryo_dir = expand_path('~/.embryo')
+        if not os.path.exists(embryo_dir):
+            os.mkdir(embryo_dir)
+        path = os.path.join(embryo_dir, 'commands')
+        if not os.path.exists(path):
+            os.mkdir(path)
+    return path
+
+
+def start():
+    root = compute_command_path()
+    if root is not None:
+        return cli.bootstrap({
+            'package': 'embryo',
+            'bindings': [
+                {'resource': 'Command'},
+            ],
+            'bootstraps': [{
+                'store': 'FilesystemStore',
+                'default': True,
+                'params': {
+                    'root': root,
+                    'use_recursive_merge': False,
+                }
+            }]
+        }).start()
+
+
+if __name__ == '__main__':
+    start()

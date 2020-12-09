@@ -50,11 +50,7 @@ class DotFileManager(object):
             embryo_name2context_list = self._load_context_json(json_fpath)
             for embryo_name, context_list in embryo_name2context_list.items():
                 count = len(context_list)
-                say(
-                    'loading embryo: "{name}" ({count}x)...',
-                    name=embryo_name,
-                    count=count
-                )
+                say(f'loading embryo: "{embryo_name}" ({count}x)...')
                 for context in context_list:
                     embryo = self._load_embryo(context)
                     if embryo is None:

@@ -6,15 +6,8 @@ from typing import Dict, List, Text
 
 from jinja2.exceptions import TemplateSyntaxError
 
-from appyratus.files import (
-    File,
-    Json,
-    Yaml,
-)
-from appyratus.schema import (
-    Schema,
-    fields,
-)
+from appyratus.files import File, Json, Yaml
+from appyratus.schema import Schema, fields
 from appyratus.utils import PathUtils
 
 from .constants import (
@@ -189,7 +182,7 @@ class Embryo(object):
         template.
         """
         say('stimulating embryonic growth sequence...')
-        say('hatching Embryo: "{name}"', name=self.name)
+        say(f'hatching Embryo: {self.name}')
 
         if (not self.standalone()) and self.related:
             # Load all Embryo objects discovered in
@@ -241,6 +234,27 @@ class Embryo(object):
 
         say('running embryo.post_create...')
         self.post_create(self.dumped_context)
+
+    @staticmethod
+    def import_embryo(name: Text, context: Dict = None) -> 'Embryo':
+        search_path = build_embryo_search_path()
+        embryo_path = resolve_embryo_path(search_path, name)
+        embryo_factory = import_embryo_class(embryo_path)
+        embryo = None
+        if embryo_factory is not None:
+            embryo = embryo_factory(embryo_path, context or {})
+        return embryo
+
+    def load_static_context(self) -> Dict:
+        path = os.path.join(self.path, 'context.yml')
+        if os.path.exists(path):
+            return Yaml.read(path)
+
+        path = os.path.join(self.path, 'context.json')
+        if os.path.exists(path):
+            return Json.read(path)
+
+        raise ValueError(f'cannot find context file')
 
     def _load_nested_embryos(self):
         search_path = build_embryo_search_path()
@@ -300,10 +314,7 @@ class Embryo(object):
         if schema:
             result, errors = schema.process(self.context)
             if errors:
-                shout(
-                    'failed to load context: {errors}',
-                    errors=Json.dump(errors, indent=2, sort_keys=True)
-                )
+                shout(f'failed to load context: {errors}')
                 exit(-1)
             retval.update(result)
         retval['embryo'] = self.context['embryo']

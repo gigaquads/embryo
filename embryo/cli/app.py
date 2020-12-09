@@ -54,8 +54,8 @@ def run(
 @cli.action()
 def upsert(
     request,
-    embryo: Text,
     name: Text,
+    embryo: Text,
     destination: Text = None,
     cwd: Text = None,
     overwrite: bool = True,
@@ -92,7 +92,10 @@ def upsert(
     )
 
     for k, v in list(computed_defaults.items()):
+        field = schema.fields[k]
         if isinstance(v, str) and v.upper() == 'NULL':
+            del computed_defaults[k]
+        elif v is None:
             del computed_defaults[k]
         else:
             v_processed, error = schema.fields[k].process(v)
@@ -134,19 +137,19 @@ def upsert(
         ).create()
         cli.log.info(f'created new command: {name}')
 
-    cmd.show(verbose=False)
+    cmd.show()
     return cmd
 
 
 @cli.action()
-def commands(
+def show(
     request,
-    order_by: Text = 'name',
-    desc: bool = True,
+    name: Text,
     verbose: bool = False
 ):
-    order_by = f'{order_by} {"desc" if desc else "asc"}'
-    get_commands = Command.select(Command).order_by(order_by)
-    for cmd in get_commands():
+    cmd = Command.select(Command).where(name=name)(first=True)
+    if cmd is not None:
         cmd.show(verbose=verbose)
+    else:
+        raise KeyError(f'command not found: {name}')
     

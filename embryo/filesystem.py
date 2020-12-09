@@ -1,4 +1,5 @@
 import os
+import re
 from os.path import (
     exists,
     join,
@@ -211,9 +212,21 @@ class FileManager(object):
         return metadata.file_obj
 
     def get_metadata(self, key):
+        """
+        # Get Metadata
+        Get file metdata using the provided key
+        """
         return self.path2metadata.get(key)
 
     def find_metadata(self, key):
+        """
+        # Find Metadata
+        Find file filedata using the provided key.  Checks against a list of
+        all known filenames of stored metadata using an exact match, or if not
+        that then a regex match.  
+
+        Returns a dict of all metadata with filepaths as keys
+        """
         res = self.get_metadata(key)
         if res:
             return res
@@ -221,6 +234,8 @@ class FileManager(object):
         matches = {}
         for k in known_keys:
             if key in k:
+                matches[k] = self.get_metadata(k)
+            elif re.search(key, k):
                 matches[k] = self.get_metadata(k)
         return matches
 

@@ -404,7 +404,10 @@ class Embryo(object):
         tree = Yaml.load(tree_yml)
         return tree
 
-    def make_executable(self, file_match):
+    def make_executable(self, file_match: Text):
+        """
+        # Make Executable
+        """
         executables = [k for k in self.fs.find_metadata(file_match).keys()]
         if not executables:
             return

@@ -119,12 +119,7 @@ class Renderer(object):
                         loaded_templates[k] = jinja_env.from_string(v)
                     except Exception as exc:
                         source = exc.source.split('\n')[exc.lineno - 1]
-                        shout(
-                            'error "{message}", line {line} {source}',
-                            message=exc.message,
-                            line=exc.lineno,
-                            source=source
-                        )
+                        shout(f'error "{exc.message}", line {exc.lineno} {source}')
 
         self.jinja2_templates = loaded_templates
 

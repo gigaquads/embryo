@@ -77,14 +77,14 @@ class Renderer(object):
 
         say(f'context:\n\n{ctx_json}\n')
         say(
-            'tree:\n\n{tree}',
-            tree='\n'.join(
-                ' ' * 4 + line for line in yaml.dump(
-                    self.embryo.tree,
-                    default_flow_style=False,
-                    indent=2,
-                ).split('\n')
-            )
+            'tree:\n\n{}'.format(
+                '\n'.join(
+                    ' ' * 4 + line for line in yaml.dump(
+                        self.embryo.tree,
+                        default_flow_style=False,
+                        indent=2,
+                    ).split('\n')
+            ))
         )
 
         self.embryo.fs._touch_filesystem(self.root, self.directory_paths, self.fpaths)

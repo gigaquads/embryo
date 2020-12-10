@@ -34,28 +34,27 @@ class Relationship(object):
 
 
 class RelationshipManager(object):
+
     def __init__(self):
         pass
 
     def load(self, embryo: 'Embryo'):
         relationships = {
             rel_name: rel
-            for (rel_name, rel) in inspect.
-            getmembers(embryo, lambda x: isinstance(x, Relationship))
+            for (rel_name, rel
+                ) in inspect.getmembers(embryo, lambda x: isinstance(x, Relationship))
         }
 
         results = {}    # {embryo name => Embryo | List[Embryo]}
 
         for rel_name, rel in relationships.items():
-            say('evaluating relationship: {rel}...', rel=rel_name)
+            say(f'evaluating relationship: {rel_name}...')
             if rel.is_nested:
                 assert rel.path_to_dot_dir is None
                 # ^ No such thing as a dot-file path to a nested embryo
                 embryos = embryo.nested[rel.embryo_name]
             else:
-                embryos = embryo.dot.find(
-                    name=rel.embryo_name, path=rel.path_to_dot_dir
-                )
+                embryos = embryo.dot.find(name=rel.embryo_name, path=rel.path_to_dot_dir)
             idx = rel.list_index
             if (idx is not None) and (idx < len(embryos)):
                 if embryos:

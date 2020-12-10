@@ -50,7 +50,7 @@ class DotFileManager(object):
                 context_fpath
             )
             if os.path.isfile(context_fpath):
-                say('Loading embryos from {path}...', path=context_fpath)
+                say(f'Loading embryos from {context_fpath}...')
             embryo_name2context_list = context
             for embryo_name, context_list in embryo_name2context_list.items():
                 count = len(context_list)
@@ -106,7 +106,7 @@ class DotFileManager(object):
 
         # create or load the metadata dir in the "root" dir
         if not os.path.isdir(metadata_path):
-            say('Creating metadata directory: {path}', path=metadata_path)
+            say(f'creating metadata directory: {metadata_path}')
             Path.create(metadata_path)
 
         context_path, embryo_name_2_contexts, context_ext, context_type = self.get_context(
@@ -131,7 +131,7 @@ class DotFileManager(object):
             embryo_name_2_contexts[embryo.name].append(clean_embryo_context)
 
         # write the appended data back to the JSON file
-        say('saving context to {path}', path=context_path)
+        say(f'saving context to {context_path}')
         contents = Json.load(Json.dump(embryo_name_2_contexts))
         context_type.write(context_path, contents)
 

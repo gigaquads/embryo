@@ -131,7 +131,7 @@ class DotFileManager(object):
             embryo_name_2_contexts[embryo.name].append(clean_embryo_context)
 
         # write the appended data back to the JSON file
-        say('saving context to {path}', path=context_path)
+        say(f'saving context to {context_path}')
         contents = Json.load(Json.dump(embryo_name_2_contexts))
         context_type.write(context_path, contents)
 

@@ -8,7 +8,7 @@ from jinja2.exceptions import TemplateSyntaxError
 
 from appyratus.files import File, Json, Yaml
 from appyratus.schema import Schema, fields
-from appyratus.utils import PathUtils
+from appyratus.utils.path_utils import PathUtils
 
 from .constants import (
     NESTED_EMBRYO_KEY,

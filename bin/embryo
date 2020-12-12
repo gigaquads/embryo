@@ -4,7 +4,8 @@
 
 from appyratus.cli import CliProgram, Subparser, PositionalArg, OptionalArg, FlagArg, Parser
 from appyratus.files import Yaml, Json
-from appyratus.utils import DictUtils, TimeUtils
+from appyratus.utils.dict_utils import DictUtils
+from appyratus.utils.time_utils import TimeUtils
 from appyratus.schema import fields
 
 from embryo import Incubator

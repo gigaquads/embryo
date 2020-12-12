@@ -2,9 +2,11 @@ import os
 
 from copy import copy
 from typing import Text, Dict
-from ravel import CliApplication, Resource, fields
+
+from ravel import Resource, fields
+from ravel.apps import Cli
 from appyratus.logging import ConsoleLoggerInterface
-from appyratus.utils import DictUtils
+from appyratus.utils.dict_utils import DictUtils
 
 from embryo.embryo import Embryo
 
@@ -12,7 +14,7 @@ from .command import Command
 from .util import expand_path
 
 
-cli = CliApplication(
+cli = Cli(
     name='hatch',
     tagline='manage and run stored embryo commands'
 )

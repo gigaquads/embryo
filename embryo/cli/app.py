@@ -1,11 +1,8 @@
-import os
-
 from copy import copy
 from typing import Text, Dict
 
 from ravel import Resource, fields
 from ravel.apps.cli import Cli
-from appyratus.logging import ConsoleLoggerInterface
 from appyratus.utils.dict_utils import DictUtils
 
 from embryo.embryo import Embryo

@@ -1,4 +1,5 @@
-from appyratus.logging import ConsoleLoggerInterface
+from ravel.logging import ConsoleLoggerInterface
+
 from .constants import EMBRYO_CONSOLE_LOG_LEVEL
 
 

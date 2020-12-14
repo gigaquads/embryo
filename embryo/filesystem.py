@@ -19,9 +19,8 @@ from appyratus.files import (
     PythonModule,
     Shell,
 )
-from appyratus.files import Text as TextFile
-from appyratus.files import Yaml
-from appyratus.utils import PathUtils
+from appyratus.files import Yaml, Text as TextFile
+from appyratus.utils.path_utils import PathUtils
 
 from .constants import RE_RENDERING_METADATA
 from .utils import say

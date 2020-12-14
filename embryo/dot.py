@@ -8,7 +8,7 @@ from typing import (
 )
 
 from appyratus.files import Json, Yaml
-from appyratus.utils import PathUtils as Path
+from appyratus.utils.path_utils import PathUtils as Path
 from embryo.constants import EMBRYO_FILE_NAMES
 
 from .utils import (

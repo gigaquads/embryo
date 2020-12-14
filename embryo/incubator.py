@@ -3,7 +3,7 @@ import inspect
 
 from typing import Dict, List
 
-from appyratus.utils import TimeUtils
+from appyratus.utils.time_utils import TimeUtils
 
 from embryo import Renderer
 

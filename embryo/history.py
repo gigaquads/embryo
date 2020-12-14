@@ -1,10 +1,9 @@
 from typing import Text
 
 from appyratus.files import Json
-from appyratus.utils import (
-    DictUtils,
-    TimeUtils,
-)
+from appyratus.utils.dict_utils import DictUtils
+from appyratus.utils.time_utils import TimeUtils
+
 from embryo.dot import DotFileManager
 
 

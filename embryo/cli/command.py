@@ -1,7 +1,8 @@
 from typing import Dict, Text
 
 from tabulate import tabulate
-from appyratus.utils import DictUtils, StringUtils
+from appyratus.utils.dict_utils import DictUtils
+from appyratus.utils.string_utils import StringUtils
 from ravel import Resource, fields
 
 from embryo.embryo import Embryo

@@ -1,4 +1,4 @@
-from appyratus.utils import TemplateEnvironment
+from appyratus.utils.template_utils import TemplateEnvironment
 
 
 def build_env():

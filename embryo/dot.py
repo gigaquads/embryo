@@ -117,7 +117,7 @@ class DotFileManager(object):
         # embryos generated here of the same name.
         schema = embryo.context_schema()
         if schema:
-            context, errors = schema.process(embryo.context, strict=True)
+            context = schema.process(embryo.context, strict=True)
 
         # clean up embryo context, as we want to remove some information- like
         # the embryo destination, which can vary from user to user

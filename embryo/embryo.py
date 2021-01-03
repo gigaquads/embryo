@@ -8,7 +8,7 @@ from jinja2.exceptions import TemplateSyntaxError
 
 from appyratus.files import File, Json, Yaml
 from appyratus.schema import Schema, fields
-from appyratus.utils import PathUtils
+from appyratus.utils.path_utils import PathUtils
 
 from .constants import (
     NESTED_EMBRYO_KEY,
@@ -181,7 +181,7 @@ class Embryo(object):
         in the templates/ dir as well as the tree.yml file, which is also a
         template.
         """
-        say('stimulating {self.name} embryonic growth sequence...')
+        say(f'stimulating {self.name} embryonic growth sequence...')
 
         if (not self.standalone()) and self.related:
             # Load all Embryo objects discovered in

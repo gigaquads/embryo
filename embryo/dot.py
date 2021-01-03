@@ -8,7 +8,7 @@ from typing import (
 )
 
 from appyratus.files import Json, Yaml
-from appyratus.utils import PathUtils as Path
+from appyratus.utils.path_utils import PathUtils as Path
 from embryo.constants import EMBRYO_FILE_NAMES
 
 from .utils import (
@@ -117,7 +117,7 @@ class DotFileManager(object):
         # embryos generated here of the same name.
         schema = embryo.context_schema()
         if schema:
-            context, errors = schema.process(embryo.context, strict=True)
+            context = schema.process(embryo.context, strict=True)
 
         # clean up embryo context, as we want to remove some information- like
         # the embryo destination, which can vary from user to user
@@ -131,7 +131,7 @@ class DotFileManager(object):
             embryo_name_2_contexts[embryo.name].append(clean_embryo_context)
 
         # write the appended data back to the JSON file
-        say('saving context to {path}', path=context_path)
+        say(f'saving context to {context_path}')
         contents = Json.load(Json.dump(embryo_name_2_contexts))
         context_type.write(context_path, contents)
 

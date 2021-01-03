@@ -9,10 +9,8 @@ from typing import (
     List,
 )
 
-from appyratus.utils import (
-    PathUtils,
-    StringUtils,
-)
+from appyratus.utils.path_utils import PathUtils
+from appyratus.utils.string_utils import StringUtils
 
 from .constants import (
     EMBRYO_FILE_NAMES,

@@ -11,15 +11,9 @@ from typing import (
 
 import yaml
 
-from appyratus.files import (
-    Json,
-    PythonModule,
-    Yaml,
-)
-from appyratus.utils import (
-    PathUtils,
-    Template,
-)
+from appyratus.files import Json, PythonModule, Yaml
+from appyratus.utils.path_utils import PathUtils
+from appyratus.utils.template_utils import Template
 
 from .constants import (
     RE_RENDERING_EMBRYO,

@@ -50,7 +50,7 @@ class DotFileManager(object):
                 context_fpath
             )
             if os.path.isfile(context_fpath):
-                say('Loading embryos from {path}...', path=context_fpath)
+                say(f'Loading embryos from {context_fpath}...')
             embryo_name2context_list = context
             for embryo_name, context_list in embryo_name2context_list.items():
                 count = len(context_list)
@@ -106,7 +106,7 @@ class DotFileManager(object):
 
         # create or load the metadata dir in the "root" dir
         if not os.path.isdir(metadata_path):
-            say('Creating metadata directory: {path}', path=metadata_path)
+            say(f'creating metadata directory: {metadata_path}')
             Path.create(metadata_path)
 
         context_path, embryo_name_2_contexts, context_ext, context_type = self.get_context(

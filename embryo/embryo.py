@@ -183,16 +183,16 @@ class Embryo(object):
         """
         say(f'stimulating {self.name} embryonic growth sequence...')
 
-        if (not self.standalone()) and self.related:
+        if not self.standalone():
             # Load all Embryo objects discovered in
             # context.json files present in the filesystem,
             # relative to this embryo's destination directory.
             self.dot.load(self)
 
-            # Generates a dict that maps relationship name
-            # to Embryo object, found by the dot file manager,
-            # using Relationship ctor arguments.
-            self.related = RelationshipManager().load(self)
+        # Generates a dict that maps relationship name
+        # to Embryo object, found by the dot file manager,
+        # using Relationship ctor arguments.
+        self.related = RelationshipManager().load(self)
 
         say('running embryo.pre_create...')
         self.pre_create(self.context)
@@ -313,7 +313,7 @@ class Embryo(object):
         if schema:
             result, errors = schema.process(self.context)
             if errors:
-                shout(f'failed to load context: {errors}')
+                shout('failed to load context', data=errors)
                 exit(-1)
             retval.update(result)
         retval['embryo'] = self.context['embryo']
@@ -419,7 +419,7 @@ class Embryo(object):
 
         tree_yml_tpl = File.read(fpath)
         if tree_yml_tpl is None:
-            shout('no tree.yml file in {}'.format(fpath))
+            shout(f'no tree.yml file in {fpath}')
             return
         tree_yml = self.jinja_env.from_string(tree_yml_tpl).render(context)
         tree = Yaml.load(tree_yml)

@@ -66,19 +66,16 @@ class Renderer(object):
         # prepare a copy of the context for logging purposes only
         ctx = self.embryo.dumped_context.copy()
         del ctx['embryo']
-        
+
         ctx_json = Json.dump(ctx, indent=2, sort_keys=True)
 
         say(f'context:\n\n{ctx_json}\n')
         say(
-            'tree:\n\n{}'.format(
-                '\n'.join(
-                    ' ' * 4 + line for line in yaml.dump(
-                        self.embryo.tree,
-                        default_flow_style=False,
-                        indent=2,
-                    ).split('\n')
-            ))
+            'tree:\n\n{tree}'.format(
+                tree='\n'.join(
+                    ' ' * 4 + line for line in Yaml.dump(self.embryo.tree).split('\n')
+                )
+            )
         )
 
         self.embryo.fs._touch_filesystem(self.root, self.directory_paths, self.fpaths)
@@ -118,12 +115,7 @@ class Renderer(object):
                         loaded_templates[k] = jinja_env.from_string(v)
                     except Exception as exc:
                         source = exc.source.split('\n')[exc.lineno - 1]
-                        shout(
-                            'error "{message}", line {line} {source}',
-                            message=exc.message,
-                            line=exc.lineno,
-                            source=source
-                        )
+                        shout(f'error "{exc.message}", line {exc.lineno} {source}')
 
         self.jinja2_templates = loaded_templates
 
@@ -165,7 +157,9 @@ class Renderer(object):
                         match = RE_RENDERING_METADATA.match(v)
                         fname = k
                         if not match:
-                            shout(f'unable to find renderer match for "{k}: {v}".. skipping')
+                            shout(
+                                f'unable to find renderer match for "{k}: {v}".. skipping'
+                            )
                         else:
                             tpl_name, ctx_key = match.groups()
                             fpath = join(parent_path, fname)
@@ -270,9 +264,10 @@ class Renderer(object):
 
         try:
             say(f'rendering {template_name}')
+            say('wat', data=context)
             rendered_text = template.render(context).strip()
         except Exception:
-            shout('problem rendering {t}', t=template_name)
+            shout(f'problem rendering {template_name}')
             raise
         return rendered_text
 

@@ -151,4 +151,15 @@ def show(
         cmd.show(verbose=verbose)
     else:
         raise KeyError(f'command not found: {name}')
-    
+
+
+@cli.action()
+def show_all(
+    request,
+    verbose: bool = False
+):
+    commands = Command.select().where().order_by(
+        Command.name.desc
+    )()
+    for cmd in commands:
+        cmd.show(verbose=verbose)

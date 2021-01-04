@@ -22,7 +22,10 @@ class History(object):
         for timestamp, command in embryo_commands:
             if command in used_commands:
                 continue
-            ts = TimeUtils.from_timestamp(timestamp)
+            if timestamp is not None:
+                ts = TimeUtils.from_timestamp(timestamp)
+            else:
+                ts = None
             used_commands.append((ts, command))
         return used_commands
 
@@ -43,7 +46,7 @@ class History(object):
                 command = 'embryo {} {} {}'.format(
                     embryo_data['action'], embryo, ' '.join(context_args)
                 )
-                timestamp = embryo_data['timestamp']
+                timestamp = embryo_data.get('timestamp')
                 commands.append((timestamp, command))
 
         return commands

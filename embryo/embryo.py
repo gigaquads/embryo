@@ -53,7 +53,7 @@ class ContextSchema(Schema):
     """
     embryo = fields.Nested(
         {
-            'timestamp': fields.DateTime(),
+            'timestamp': fields.DateTime(nullable=True),
             'name': fields.String(),
             'action': fields.String(),
             'path': fields.String(),
@@ -132,7 +132,7 @@ class Embryo(object):
         """
         UTC datetime object, recording when this embryo was hatched.
         """
-        return self.context['embryo']['timestamp']
+        return self.context['embryo'].get('timestamp')
 
     @classmethod
     def standalone(cls) -> bool:

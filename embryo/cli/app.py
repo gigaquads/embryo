@@ -51,6 +51,17 @@ def run(
 
 
 @cli.action()
+def remove(
+    request,
+    name: Text
+):
+    cmd = Command.select(Command).where(name=name)(first=True)
+    if cmd is not None:
+        cmd.show()
+        cmd.log.info(f'deleting {cmd}')
+        cmd.delete()
+
+@cli.action()
 def upsert(
     request,
     name: Text,

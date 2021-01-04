@@ -247,11 +247,11 @@ class Embryo(object):
     def load_static_context(self) -> Dict:
         path = os.path.join(self.path, 'context.yml')
         if os.path.exists(path):
-            return Yaml.read(path)
+            return Yaml.read(path) or {}
 
         path = os.path.join(self.path, 'context.json')
         if os.path.exists(path):
-            return Json.read(path)
+            return Json.read(path) or {}
 
         raise ValueError(f'cannot find context file')
 

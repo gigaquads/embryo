@@ -1,5 +1,5 @@
 from copy import copy
-from typing import Text, Dict
+from typing import Text, Dict, Optional
 
 from ravel import Resource, fields
 from ravel.apps.cli import Cli
@@ -143,23 +143,19 @@ def upsert(
 @cli.action()
 def show(
     request,
-    name: Text,
+    name: Optional[Text] = None,
     verbose: bool = False
 ):
-    cmd = Command.select(Command).where(name=name)(first=True)
-    if cmd is not None:
-        cmd.show(verbose=verbose)
+    if name is not None:
+        cmd = Command.select(Command).where(name=name)(first=True)
+        if cmd is not None:
+            cmd.show(verbose=verbose)
+        else:
+            raise KeyError(f'command not found: {name}')
     else:
-        raise KeyError(f'command not found: {name}')
-
-
-@cli.action()
-def show_all(
-    request,
-    verbose: bool = False
-):
-    commands = Command.select().where().order_by(
-        Command.name.desc
-    )()
-    for cmd in commands:
-        cmd.show(verbose=verbose)
+        # show all
+        commands = Command.select().where().order_by(
+            Command.name.desc
+        )()
+        for cmd in commands:
+            cmd.show(verbose=verbose)

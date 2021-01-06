@@ -1,4 +1,5 @@
 ravel
 appyratus
+tabulate
 pytest
 ipdb

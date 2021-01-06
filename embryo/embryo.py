@@ -53,7 +53,7 @@ class ContextSchema(Schema):
     """
     embryo = fields.Nested(
         {
-            'timestamp': fields.DateTime(),
+            'timestamp': fields.DateTime(nullable=True),
             'name': fields.String(),
             'action': fields.String(),
             'path': fields.String(),
@@ -132,7 +132,7 @@ class Embryo(object):
         """
         UTC datetime object, recording when this embryo was hatched.
         """
-        return self.context['embryo']['timestamp']
+        return self.context['embryo'].get('timestamp')
 
     @classmethod
     def standalone(cls) -> bool:
@@ -247,11 +247,11 @@ class Embryo(object):
     def load_static_context(self) -> Dict:
         path = os.path.join(self.path, 'context.yml')
         if os.path.exists(path):
-            return Yaml.read(path)
+            return Yaml.read(path) or {}
 
         path = os.path.join(self.path, 'context.json')
         if os.path.exists(path):
-            return Json.read(path)
+            return Json.read(path) or {}
 
         raise ValueError(f'cannot find context file')
 

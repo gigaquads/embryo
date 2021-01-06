@@ -1,5 +1,5 @@
 from copy import copy
-from typing import Text, Dict
+from typing import Text, Dict, Optional
 
 from ravel import Resource, fields
 from ravel.apps.cli import Cli
@@ -49,6 +49,17 @@ def run(
         embryo = Embryo.import_embryo(cmd.embryo, context)
         embryo.hatch()
 
+
+@cli.action()
+def remove(
+    request,
+    name: Text
+):
+    cmd = Command.select(Command).where(name=name)(first=True)
+    if cmd is not None:
+        cmd.show()
+        cmd.log.info(f'deleting {cmd}')
+        cmd.delete()
 
 @cli.action()
 def upsert(
@@ -143,12 +154,19 @@ def upsert(
 @cli.action()
 def show(
     request,
-    name: Text,
+    name: Optional[Text] = None,
     verbose: bool = False
 ):
-    cmd = Command.select(Command).where(name=name)(first=True)
-    if cmd is not None:
-        cmd.show(verbose=verbose)
+    if name is not None:
+        cmd = Command.select(Command).where(name=name)(first=True)
+        if cmd is not None:
+            cmd.show(verbose=verbose)
+        else:
+            raise KeyError(f'command not found: {name}')
     else:
-        raise KeyError(f'command not found: {name}')
-    
+        # show all
+        commands = Command.select().where().order_by(
+            Command.name.desc
+        )()
+        for cmd in commands:
+            cmd.show(verbose=verbose)

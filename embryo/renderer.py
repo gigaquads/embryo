@@ -264,7 +264,6 @@ class Renderer(object):
 
         try:
             say(f'rendering {template_name}')
-            say('wat', data=context)
             rendered_text = template.render(context).strip()
         except Exception:
             shout(f'problem rendering {template_name}')
@@ -301,7 +300,10 @@ class Renderer(object):
         adapter.write(fpath, loaded_text)
 
     def get_abs_path(self, fpath):
-        return join(self.root, fpath.strip())
+        if not fpath.startswith('/'):
+            return os.path.abspath(fpath)
+        else:
+            return join(self.root, fpath.strip())
 
     def get_adapter(self, fpath):
         ext = PathUtils.get_extension(fpath)

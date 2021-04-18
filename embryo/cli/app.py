@@ -54,6 +54,20 @@ def remove(request, name: Text):
 
 
 @cli.action()
+def rename(
+    request,
+    name: Text,
+    new_name: Text,
+):
+    cmd = Command.select(Command).where(name=name)(first=True)
+    if cmd is not None:
+        cmd.log.info(
+            f'renaming command from {name} to {new_name}'
+        )
+        cmd.update(name=new_name)
+
+
+@cli.action()
 def upsert(
     request,
     name: Text,

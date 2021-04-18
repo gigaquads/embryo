@@ -63,6 +63,16 @@ class HatchSubparser(Subparser):
 
     @staticmethod
     def dothis(program, cli_args):
+        """
+        The hatch program does the following:
+        - build args context from provided cli args
+        - load up the incubator with embryo details and args context
+        - using embryo schema, create Args for each field
+        - create and run the cli program
+        - take the new programs args and update the embryo context 
+        - run incubator hatch
+        """
+
         cli_args_context = HatchSubparser.load_context(cli_args)
         _incubator = Incubator(
             embryo_name=cli_args.embryo,
@@ -92,6 +102,7 @@ class HatchSubparser(Subparser):
         nprogram = CliProgram(args=nargs, cli_args=program._raw_cli_args)
         nprogram.run()
 
+        # take the new programs args and update the embryo context 
         embryo.context.update({
             k: v for k, v in
             HatchSubparser.load_context(nprogram.cli_args).items()

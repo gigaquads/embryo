@@ -10,11 +10,7 @@ from embryo.embryo import Embryo
 from .command import Command
 from .util import expand_path
 
-
-cli = Cli(
-    name='hatch',
-    tagline='manage and run stored embryo commands'
-)
+cli = Cli(name='hatch', tagline='manage and run stored embryo commands')
 
 
 @cli.action()
@@ -23,11 +19,11 @@ def run(
     name: Text,
     destination: Text = None,
     cwd: Text = None,
-    **arguments
+    **arguments,
 ):
     if cwd:
         cwd = expand_path(cwd)
-    
+
     cmd = Command.select(Command).where(name=name.lower())(first=True)
     output = None
 
@@ -35,9 +31,7 @@ def run(
         cli.log.error(f'command not found: {cmd}')
     else:
         if arguments:
-            arguments = DictUtils.unflatten_keys({
-                k.lstrip('_'): v for k, v in arguments.items()
-            })
+            arguments = DictUtils.unflatten_keys({k.lstrip('_'): v for k, v in arguments.items()})
         context = dict(cmd.defaults, **arguments)
         context['embryo'] = {
             'destination': destination or cmd.destination,
@@ -51,15 +45,13 @@ def run(
 
 
 @cli.action()
-def remove(
-    request,
-    name: Text
-):
+def remove(request, name: Text):
     cmd = Command.select(Command).where(name=name)(first=True)
     if cmd is not None:
         cmd.show()
         cmd.log.info(f'deleting {cmd}')
         cmd.delete()
+
 
 @cli.action()
 def upsert(
@@ -69,13 +61,11 @@ def upsert(
     destination: Text = None,
     cwd: Text = None,
     overwrite: bool = True,
-    **defaults
+    **defaults,
 ):
     # get the existing command, provided it exists. if it exists,
     # then we should perform an update below.
-    existing_cmd = Command.select(Command).where(
-        name=name.lower()
-    ).execute(first=True)
+    existing_cmd = Command.select(Command).where(name=name.lower()).execute(first=True)
 
     # process default values with embryo schema fields
     embryo_obj = Embryo.import_embryo(embryo, {})
@@ -96,9 +86,8 @@ def upsert(
         computed_defaults.update(existing_cmd.defaults)
 
     computed_defaults.update(
-        DictUtils.unflatten_keys({
-            k.lstrip('_'): v for k, v in defaults.items()
-        })
+        DictUtils.unflatten_keys({k.lstrip('_'): v
+                                  for k, v in defaults.items()})
     )
 
     for k, v in list(computed_defaults.items()):
@@ -113,7 +102,11 @@ def upsert(
             if error:
                 cli.log.error(
                     message='error validating embryo default',
-                    data={ 'field': k, 'value': v, 'reason': error }
+                    data={
+                        'field': k,
+                        'value': v,
+                        'reason': error
+                    }
                 )
                 return
 
@@ -139,11 +132,7 @@ def upsert(
             cli.log.info(f'updated existing command: {name}')
     else:
         cmd = Command(
-            name=name,
-            embryo=embryo,
-            destination=destination,
-            defaults=computed_defaults,
-            cwd=cwd
+            name=name, embryo=embryo, destination=destination, defaults=computed_defaults, cwd=cwd
         ).create()
         cli.log.info(f'created new command: {name}')
 
@@ -152,11 +141,7 @@ def upsert(
 
 
 @cli.action()
-def show(
-    request,
-    name: Optional[Text] = None,
-    verbose: bool = False
-):
+def show(request, name: Optional[Text] = None, verbose: bool = False):
     if name is not None:
         cmd = Command.select(Command).where(name=name)(first=True)
         if cmd is not None:
@@ -165,8 +150,6 @@ def show(
             raise KeyError(f'command not found: {name}')
     else:
         # show all
-        commands = Command.select().where().order_by(
-            Command.name.desc
-        )()
+        commands = Command.select().where().order_by(Command.name.desc)()
         for cmd in commands:
             cmd.show(verbose=verbose)

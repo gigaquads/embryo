@@ -59,14 +59,13 @@ class Incubator(object):
         # Add Embryo metadata to context
         context.update(
             {
-                'embryo': {
-                    'name': embryo_name,
-                    'destination': os.path.abspath(
-                        os.path.expanduser(destination)
-                    ),
-                    'timestamp': TimeUtils.utc_now(),
-                    'action': 'hatch',
-                }
+                'embryo':
+                    {
+                        'name': embryo_name,
+                        'destination': os.path.abspath(os.path.expanduser(destination)),
+                        'timestamp': TimeUtils.utc_now(),
+                        'action': 'hatch',
+                    }
             }
         )
 

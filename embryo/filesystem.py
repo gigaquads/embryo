@@ -7,6 +7,7 @@ from os.path import (
 from typing import (
     Dict,
     Text,
+    Optional,
 )
 
 from appyratus.files import (
@@ -201,6 +202,10 @@ class FileManager(object):
         self._root = None
 
     @property
+    def root(self) -> Optional[str]:
+        return self._root
+
+    @property
     def path2metadata(self):
         return self._abs_path2metadata
 
@@ -269,8 +274,11 @@ class FileManager(object):
         which there exists a FileTypeAdapter.
         """
         tree = embryo.tree
-        self._root = embryo.destination
-
+        self._root = os.path.realpath(
+            os.path.expanduser(
+                os.path.expandvars(embryo.destination)
+            )
+        )
         def read_recursive(node: Dict, path_key: Text):
             if isinstance(node, str):
                 match = RE_RENDERING_METADATA.match(node)

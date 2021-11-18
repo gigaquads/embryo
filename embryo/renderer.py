@@ -282,7 +282,6 @@ class Renderer(object):
         recognized by this `Renderer`.
         """
         try:
-            say(f'rendering {abs_fpath[1+len(self.embryo.destination):]}')
             rendered_text = self.render_template(
                 template_name=template_name, context=context
             )
